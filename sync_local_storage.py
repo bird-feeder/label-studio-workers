@@ -3,7 +3,9 @@ import json
 import os
 import random
 import shlex
+import signal
 import subprocess
+import sys
 import time
 from datetime import date
 from datetime import datetime
@@ -11,8 +13,15 @@ from glob import glob
 from pathlib import Path
 
 import requests
+import schedule
 from dotenv import load_dotenv
 from loguru import logger
+
+
+def keyboard_interrupt_handler(sig, _):
+    print(f'KeyboardInterrupt (ID: {sig}) has been caught...')
+    print('Terminating the session gracefully...')
+    sys.exit(1)
 
 
 def _run(cmd):
@@ -118,7 +127,7 @@ def sync_picam(project_id):
         response = resp.json()
         logger.debug(f'Request URL: {url}')
         logger.debug(f'Request data: {data}')
-        if response['status_code'] == 400:
+        if response.get('status_code') == 400:
             raise Exception('Something is wrong.')
         logger.info(f'Create new local storage response: {response}')
         storage_id = response['id']
@@ -162,13 +171,25 @@ def rclone_files_handler(project_id):
     _run(cmd_move)
 
 
-if __name__ == '__main__':
-    load_dotenv()
-    logger.add('sync_local_storage.log')
+def main():
     logger.debug('--------------------START--------------------')
-    headers = make_headers()
-    path_to_picam = os.environ['PATH_TO_PICAM']
-    path_to_picam_on_container = os.environ['PATH_TO_PICAM_ON_CONTAINER']
     proj_id_to_use = handle_project()
     rclone_files_handler(proj_id_to_use)
     logger.debug('--------------------END--------------------')
+
+
+if __name__ == '__main__':
+    load_dotenv()
+    logger.add('sync_local_storage.log')
+    signal.signal(signal.SIGINT, keyboard_interrupt_handler)
+
+    headers = make_headers()
+    path_to_picam = os.environ['PATH_TO_PICAM']
+    path_to_picam_on_container = os.environ['PATH_TO_PICAM_ON_CONTAINER']
+
+    main()  # run once before schedule
+    schedule.every().day.do(main)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
