@@ -44,10 +44,11 @@ def make_headers():
 
 
 def handle_project():
+    headers = make_headers()
     url = f'{os.environ["LS_HOST"]}/api/projects'
     resp = requests.get(url, headers=headers)
     response = resp.json()
-    logger.debug(response)
+    logger.debug(json.dumps(response, indent=4))
 
     picam_projects = []
     for p in response['results']:
@@ -83,7 +84,7 @@ def handle_project():
         url = f'{os.environ["LS_HOST"]}/api/projects'
         resp = requests.post(url, headers=headers, data=json.dumps(template))
         _response = resp.json()
-        logger.debug(_response)
+        logger.debug(json.dumps(_response, indent=4))
         proj_id_to_use = _response['id']
     else:
         proj_id_to_use = picam_projects[0][0]
@@ -92,11 +93,12 @@ def handle_project():
 
 
 def sync_picam(project_id):
+    headers = make_headers()
     dt = datetime.today().strftime('%m-%d-%Y')
     NEW_FOLDER_NAME = f'downloaded_{dt}'
 
-    if not Path(f'{path_to_picam}/{NEW_FOLDER_NAME}').exists():
-        logger.error(f'{path_to_picam}/{NEW_FOLDER_NAME} does not exist!')
+    if not Path(f'{os.environ["PATH_TO_PICAM"]}/{NEW_FOLDER_NAME}').exists():
+        logger.error(f'{os.environ["PATH_TO_PICAM"]}/{NEW_FOLDER_NAME} does not exist!')
         raise FileNotFoundError
 
     url = f'{os.environ["LS_HOST"]}/api/storages/localfiles?' \
@@ -104,12 +106,12 @@ def sync_picam(project_id):
     logger.debug(f'Request: {url}')
     resp = requests.get(url, headers=headers)
     response = resp.json()
-    logger.debug(response)
+    logger.debug(json.dumps(response, indent=4))
     if isinstance(response, dict):
         if response.get('status_code') == 404:
             raise ConnectionError
 
-    _PATH = f'{path_to_picam_on_container}/{NEW_FOLDER_NAME}'
+    _PATH = f'{os.environ["PATH_TO_PICAM_ON_CONTAINER"]}/{NEW_FOLDER_NAME}'
     logger.debug(_PATH)
     EXISTS = False
 
@@ -126,7 +128,7 @@ def sync_picam(project_id):
         resp = requests.post(url, headers=headers, data=data)
         response = resp.json()
         logger.debug(f'Request URL: {url}')
-        logger.debug(f'Request data: {data}')
+        logger.debug(f'Request data: {json.dumps(data, indent=4)}')
         if response.get('status_code') == 400:
             raise Exception('Something is wrong.')
         logger.info(f'Create new local storage response: {response}')
@@ -142,7 +144,7 @@ def sync_picam(project_id):
 
 def rclone_files_handler(project_id):
     ts = f'downloaded_{date.today().strftime("%m-%d-%Y")}'
-    source_path = f'{path_to_picam}/{ts}'
+    source_path = f'{os.environ["PATH_TO_PICAM"]}/{ts}'
     Path(source_path).mkdir(exist_ok=True)
 
     logger.debug('Copying images from google drive to local storage')
@@ -171,7 +173,7 @@ def rclone_files_handler(project_id):
     _run(cmd_move)
 
 
-def main():
+def sync_local_storage():
     logger.debug('--------------------START--------------------')
     proj_id_to_use = handle_project()
     rclone_files_handler(proj_id_to_use)
@@ -180,15 +182,11 @@ def main():
 
 if __name__ == '__main__':
     load_dotenv()
-    logger.add('sync_local_storage.log')
+    logger.add('logs.log')
     signal.signal(signal.SIGINT, keyboard_interrupt_handler)
 
-    headers = make_headers()
-    path_to_picam = os.environ['PATH_TO_PICAM']
-    path_to_picam_on_container = os.environ['PATH_TO_PICAM_ON_CONTAINER']
-
-    main()  # run once before schedule
-    schedule.every().day.do(main)
+    sync_local_storage()  # run once before schedule
+    schedule.every().day.do(sync_local_storage)
 
     while True:
         schedule.run_pending()
