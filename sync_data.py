@@ -39,6 +39,10 @@ if __name__ == '__main__':
     load_dotenv()
     logger.add(f'{Path(__file__).parent}/logs.log')
     signal.signal(signal.SIGINT, keyboard_interrupt_handler)
+    if '--once' in sys.argv:
+        main()
+        sys.exit(0)
+
     schedule.every().day.do(main)
 
     while True:
