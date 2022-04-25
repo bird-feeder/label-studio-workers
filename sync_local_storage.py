@@ -67,7 +67,7 @@ def handle_project():
     size_if_added = last_picam_project[-1] + num_of_new_files
     logger.debug(f'size_if_added: {size_if_added}')
 
-    if size_if_added > 10000:
+    if size_if_added > 1000:
         logger.debug('Creating new project...')
         template = copy.deepcopy([
             x for x in response['results'] if x['id'] == picam_projects[0][0]
