@@ -27,7 +27,7 @@ Requires=network.target
 Type=idle
 User=$USER
 WorkingDirectory=$PWD
-ExecStart=$(which python) sync_data.py
+ExecStart=$PYTHON_BIN sync_data.py
 Restart=always
 
 [Install]

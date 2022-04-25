@@ -73,7 +73,6 @@ def process_preds(db, projects_id):
 
         for result in results:
             result.update({'_id': result['id']})
-            logger.debug(result)
             db[f'project_{project_id}_preds'].insert_one(result)
     return
 
