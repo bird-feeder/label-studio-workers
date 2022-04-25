@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from mongodb_helper import mongodb_db
+from sync_preds import process_preds
 
 
 def to_srv(url):
@@ -46,18 +47,25 @@ def run(project_id, json_min=False):
         logger.warning(f'No tasks in project {project_id}! Skipping...')
         return
     anno_len_ls = project_data['num_tasks_with_annotations']
-    ls_lens = (tasks_len_ls, anno_len_ls)
+    pred_len_ls = project_data['total_predictions_number']
+
+    ls_lens = (tasks_len_ls, anno_len_ls, pred_len_ls)
     logger.debug(f'Project {project_id}:\n'
-                 f'Tasks: {tasks_len_ls}\nAnnotations: {anno_len_ls}')
+                 f'Tasks: {tasks_len_ls}\n'
+                 f'Annotations: {anno_len_ls}\n'
+                 f'Predictions: {pred_len_ls}')
 
     db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
     if json_min:
         col = db[f'project_{project_id}_min']
     else:
         col = db[f'project_{project_id}']
+
     tasks_len_mdb = len(list(col.find({}, {})))
     anno_len_mdb = len(list(col.find({"annotations": {'$ne': []}}, {})))
-    mdb_lens = (tasks_len_mdb, anno_len_mdb)
+    pred_len_mdb = len(list(db[f'project_{project_id}_preds'].find({}, {})))
+
+    mdb_lens = (tasks_len_mdb, anno_len_mdb, pred_len_mdb)
 
     if (not json_min
             and ls_lens != mdb_lens) or (json_min
@@ -65,7 +73,8 @@ def run(project_id, json_min=False):
         _msg = lambda x: f'Difference in {x} number'
         logger.debug(f'Project {project_id} has changed. Updating...\n'
                      f'{_msg("tasks")}: {tasks_len_ls - tasks_len_mdb}\n'
-                     f'{_msg("annotations")}: {anno_len_ls - anno_len_mdb}')
+                     f'{_msg("annotations")}: {anno_len_ls - anno_len_mdb}\n'
+                     f'{_msg("predictions")}: {pred_len_ls - pred_len_mdb}')
 
         if json_min:
             data = api_request(
@@ -95,6 +104,10 @@ def run(project_id, json_min=False):
     else:
         logger.debug(f'No changes were detected in project {project_id}...')
 
+    if pred_len_ls != pred_len_mdb:
+        logger.debug('Syncing predictions...')
+        process_preds(db, project_id)
+
 
 def opts():
     parser = argparse.ArgumentParser()
@@ -118,7 +131,10 @@ def sync_tasks(projects_id=None):
     for is_json_min in [False, True]:
         for project_id in projects_id:
             run(project_id, is_json_min)
-            logger.info(f'Finished processing project {project_id} (is_json_min: {is_json_min})')
+            logger.info(
+                f'Finished processing project {project_id} (is_json_min: '
+                f'{is_json_min})'
+            )
 
 
 if __name__ == '__main__':
