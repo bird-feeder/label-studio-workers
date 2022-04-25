@@ -43,7 +43,8 @@ if __name__ == '__main__':
         main()
         sys.exit(0)
 
-    schedule.every().day.do(main)
+    schedule.every().day.at('06:00').do(main)
+    schedule.every().day.at('10:00').do(main)
 
     while True:
         ray_is_running = False
