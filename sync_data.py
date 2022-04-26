@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+import os
 import signal
 import sys
 import time
@@ -8,9 +12,13 @@ import schedule
 from dotenv import load_dotenv
 from loguru import logger
 
+from sync_images import sync_images
 from sync_local_storage import sync_local_storage
 from sync_tasks import sync_tasks
-from sync_images import sync_images
+
+
+class MissingEnvironmentVariable(Exception):
+    pass
 
 
 def keyboard_interrupt_handler(sig, _):
@@ -22,17 +30,39 @@ def keyboard_interrupt_handler(sig, _):
     sys.exit(1)
 
 
+def checks():
+    for k in [
+            'PROJECTS_ID', 'DB_CONNECTION_STRING', 'DB_NAME', 'LS_HOST',
+            'SRV_HOST', 'TOKEN', 'PATH_TO_SRC_DIR',
+            'PATH_TO_SRC_DIR_ON_CONTAINER', 'REMOTE_PATH',
+            'REMOTE_DOWNLOADED_PATH'
+    ]:
+        if not os.getenv(k):
+            raise MissingEnvironmentVariable(
+                f'`{k}` is required, but is not defined in `.env`!')
+
+    if os.getenv('PATH_TO_SRC_DIR'):
+        if not Path(os.getenv('PATH_TO_SRC_DIR')).exists():
+            raise FileNotFoundError(
+                f'{os.getenv("PATH_TO_SRC_DIR")} does not exist!')
+
+
 def main():
     global ray_is_running
+    start = time.time()
+    
     logger.info('Running `sync_local_storage`')
     sync_local_storage()
 
     logger.info('Running `sync_tasks`')
     sync_tasks()
 
-    ray_is_running = True
-    logger.info('Running `sync_images`')
-    sync_images()
+    if os.getenv('LOCAL_DB_CONNECTION_STRING'):
+        ray_is_running = True
+        logger.info('Running `sync_images`')
+        sync_images()
+
+    logger.info(f'End. Took {round(start - time.time(), 2)}')
 
 
 if __name__ == '__main__':

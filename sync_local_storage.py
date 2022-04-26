@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import copy
 import json
 import os
@@ -12,6 +15,7 @@ from datetime import datetime
 from glob import glob
 from pathlib import Path
 
+import matplotlib
 import requests
 import schedule
 from dotenv import load_dotenv
@@ -50,10 +54,10 @@ def handle_project():
     response = resp.json()
     logger.debug(json.dumps(response, indent=4))
 
-    picam_projects = []
+    projects = []
     for p in response['results']:
-        if 'picam' in p['title']:
-            picam_projects.append((p['id'], p['title'], p['task_number']))
+        if 'project' in p['title']:
+            projects.append((p['id'], p['title'], p['task_number']))
 
     cmd_size = f'rclone {os.environ["IS_SHARED"]} size ' \
     f'{os.environ["REMOTE_PATH"]}'
@@ -61,24 +65,26 @@ def handle_project():
         _run(cmd_size).split('Total objects:')[1].split(' (')[1].split(')')[0])
     logger.debug(f'num_of_new_files: {num_of_new_files}')
 
-    picam_projects = sorted(picam_projects)[::-1]
+    projects = sorted(projects)[::-1]
 
-    last_picam_project = picam_projects[0]
-    size_if_added = last_picam_project[-1] + num_of_new_files
+    last_project = projects[0]
+    size_if_added = last_project[-1] + num_of_new_files
     logger.debug(f'size_if_added: {size_if_added}')
 
     if size_if_added > 1000:
         logger.debug('Creating new project...')
-        template = copy.deepcopy([
-            x for x in response['results'] if x['id'] == picam_projects[0][0]
-        ][0])
+        template = copy.deepcopy(
+            [x for x in response['results'] if x['id'] == projects[0][0]][0])
         template = {
             k: v
             for k, v in template.items() if k in ['title', 'label_config']
         }
-        new_project_title = 'picam-' + str(int(template['title'][-3:]) +
-                                           1).zfill(3)
-        color = '%06x' % random.randint(0, 0xFFFFFF)
+        new_project_title = 'project-' + str(int(template['title'][-3:]) +
+                                             1).zfill(3)
+        color = random.choice([
+            x for x in list(matplotlib.colors.cnames.values())
+            if x != '#FFFFFF'
+        ])
         template.update({'title': new_project_title, 'color': color})
 
         url = f'{os.environ["LS_HOST"]}/api/projects'
@@ -87,18 +93,20 @@ def handle_project():
         logger.debug(json.dumps(_response, indent=4))
         proj_id_to_use = _response['id']
     else:
-        proj_id_to_use = picam_projects[0][0]
+        proj_id_to_use = projects[0][0]
 
     return proj_id_to_use
 
 
-def sync_picam(project_id):
+def sync_project(project_id):
     headers = make_headers()
     dt = datetime.today().strftime('%m-%d-%Y')
     NEW_FOLDER_NAME = f'downloaded_{dt}'
 
-    if not Path(f'{os.environ["PATH_TO_PICAM"]}/{NEW_FOLDER_NAME}').exists():
-        logger.error(f'{os.environ["PATH_TO_PICAM"]}/{NEW_FOLDER_NAME} does not exist!')
+    if not Path(f'{os.environ["PATH_TO_SRC_DIR"]}/{NEW_FOLDER_NAME}').exists():
+        logger.error(
+            f'{os.environ["PATH_TO_SRC_DIR"]}/{NEW_FOLDER_NAME} does not exist!'
+        )
         raise FileNotFoundError
 
     url = f'{os.environ["LS_HOST"]}/api/storages/localfiles?' \
@@ -111,7 +119,7 @@ def sync_picam(project_id):
         if response.get('status_code') == 404:
             raise ConnectionError
 
-    _PATH = f'{os.environ["PATH_TO_PICAM_ON_CONTAINER"]}/{NEW_FOLDER_NAME}'
+    _PATH = f'{os.environ["PATH_TO_SRC_DIR_ON_CONTAINER"]}/{NEW_FOLDER_NAME}'
     logger.debug(_PATH)
     EXISTS = False
 
@@ -144,7 +152,7 @@ def sync_picam(project_id):
 
 def rclone_files_handler(project_id):
     ts = f'downloaded_{date.today().strftime("%m-%d-%Y")}'
-    source_path = f'{os.environ["PATH_TO_PICAM"]}/{ts}'
+    source_path = f'{os.environ["PATH_TO_SRC_DIR"]}/{ts}'
     Path(source_path).mkdir(exist_ok=True)
 
     logger.debug('Copying images from google drive to local storage')
@@ -157,7 +165,7 @@ def rclone_files_handler(project_id):
     logger.info(f'Copied {len(imgs)} image(s).')
 
     for _ in range(2):
-        sync_picam(project_id)
+        sync_project(project_id)
         logger.debug('Running again just in case...')
         time.sleep(2)
 
@@ -185,7 +193,10 @@ if __name__ == '__main__':
     logger.add('logs.log')
     signal.signal(signal.SIGINT, keyboard_interrupt_handler)
 
-    sync_local_storage()  # run once before schedule
+    if '--once' in sys.argv:
+        sync_local_storage()
+        sys.exit(0)
+
     schedule.every().day.do(sync_local_storage)
 
     while True:
