@@ -13,6 +13,7 @@ import schedule
 from dotenv import load_dotenv
 from loguru import logger
 
+from create_rare_classes_view import CreateRareClassesView
 from sync_images import sync_images
 from sync_local_storage import sync_local_storage
 from sync_tasks import sync_tasks
@@ -57,20 +58,28 @@ def opts():
 
 
 def main():
-    global ray_is_running
     start = time.time()
 
-    logger.info('Running `sync_local_storage`')
+    logger.info('Running `create_rare_classes_view`...')
+    project_ids = os.environ['PROJECTS_ID'].split(',')
+    for project_id in project_ids:
+        logger.debug(f'Current project id: {project_id}')
+        create_rare_classes_view = CreateRareClassesView(project_id=project_id,
+                                                        model_version='latest',
+                                                        method='median')
+        _ = create_rare_classes_view.create_view()
+
+    logger.info('Running `sync_local_storage`...')
     sync_local_storage()
 
-    logger.info('Running `sync_tasks`')
+    logger.info('Running `sync_tasks`...')
     sync_tasks()
 
     if os.getenv('LOCAL_DB_CONNECTION_STRING'):
-        logger.info('Running `sync_images`')
+        logger.info('Running `sync_images`...')
         sync_images()
 
-    logger.info(f'End. Took {round(time.time() - start, 2)}')
+    logger.info(f'End. Took {round(time.time() - start, 2)}s')
 
 
 if __name__ == '__main__':
@@ -78,7 +87,7 @@ if __name__ == '__main__':
     logger.add(f'{Path(__file__).parent}/logs.log')
     signal.signal(signal.SIGINT, keyboard_interrupt_handler)
     args = opts()
-    
+
     if args.once:
         main()
         sys.exit(0)
