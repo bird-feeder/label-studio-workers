@@ -52,7 +52,7 @@ def handle_project():
     url = f'{os.environ["LS_HOST"]}/api/projects'
     resp = requests.get(url, headers=headers)
     response = resp.json()
-    logger.debug(json.dumps(response, indent=4))
+    logger.debug(response)
 
     projects = []
     for p in response['results']:
@@ -90,7 +90,7 @@ def handle_project():
         url = f'{os.environ["LS_HOST"]}/api/projects'
         resp = requests.post(url, headers=headers, data=json.dumps(template))
         _response = resp.json()
-        logger.debug(json.dumps(_response, indent=4))
+        logger.debug(_response)
         proj_id_to_use = _response['id']
     else:
         proj_id_to_use = projects[0][0]
@@ -114,7 +114,7 @@ def sync_project(project_id):
     logger.debug(f'Request: {url}')
     resp = requests.get(url, headers=headers)
     response = resp.json()
-    logger.debug(json.dumps(response, indent=4))
+    logger.debug(response)
     if isinstance(response, dict):
         if response.get('status_code') == 404:
             raise ConnectionError
@@ -136,7 +136,7 @@ def sync_project(project_id):
         resp = requests.post(url, headers=headers, data=data)
         response = resp.json()
         logger.debug(f'Request URL: {url}')
-        logger.debug(f'Request data: {json.dumps(data, indent=4)}')
+        logger.debug(f'Request data: {data}')
         if response.get('status_code') == 400:
             raise Exception('Something is wrong.')
         logger.info(f'Create new local storage response: {response}')
