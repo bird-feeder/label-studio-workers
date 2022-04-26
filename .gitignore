@@ -163,3 +163,5 @@ cython_debug/
 .DS_Store
 Dockerfile
 *.json
+loki-config.yaml
+promtail-config.yaml
