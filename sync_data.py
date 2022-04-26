@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import argparse
 import os
 import signal
 import sys
@@ -47,10 +48,19 @@ def checks():
                 f'{os.getenv("PATH_TO_SRC_DIR")} does not exist!')
 
 
+def opts():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o',
+                        '--once',
+                        help='Run once then exit',
+                        action='store_true')
+    return parser.parse_args()
+
+
 def main():
     global ray_is_running
     start = time.time()
-    
+
     logger.info('Running `sync_local_storage`')
     sync_local_storage()
 
@@ -69,7 +79,8 @@ if __name__ == '__main__':
     load_dotenv()
     logger.add(f'{Path(__file__).parent}/logs.log')
     signal.signal(signal.SIGINT, keyboard_interrupt_handler)
-    if '--once' in sys.argv:
+    args = opts()
+    if args.once:
         main()
         sys.exit(0)
 
