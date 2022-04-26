@@ -24,9 +24,8 @@ class MissingEnvironmentVariable(Exception):
 
 def keyboard_interrupt_handler(sig, _):
     logger.warning(f'KeyboardInterrupt (ID: {sig}) has been caught...')
-    if ray_is_running:
-        logger.warning('Shutting down ray...')
-        ray.shutdown()
+    logger.warning('Shutting down ray...')
+    ray.shutdown()
     logger.warning('Terminating the session gracefully...')
     sys.exit(1)
 
@@ -68,7 +67,6 @@ def main():
     sync_tasks()
 
     if os.getenv('LOCAL_DB_CONNECTION_STRING'):
-        ray_is_running = True
         logger.info('Running `sync_images`')
         sync_images()
 
@@ -80,6 +78,7 @@ if __name__ == '__main__':
     logger.add(f'{Path(__file__).parent}/logs.log')
     signal.signal(signal.SIGINT, keyboard_interrupt_handler)
     args = opts()
+    
     if args.once:
         main()
         sys.exit(0)
