@@ -50,10 +50,10 @@ def run(project_id, json_min=False):
     pred_len_ls = project_data['total_predictions_number']
 
     ls_lens = (tasks_len_ls, anno_len_ls, pred_len_ls)
-    logger.debug(f'Project {project_id}:\n'
-                 f'Tasks: {tasks_len_ls}\n'
-                 f'Annotations: {anno_len_ls}\n'
-                 f'Predictions: {pred_len_ls}')
+    logger.debug(f'Project {project_id}:')
+    logger.debug(f'Tasks: {tasks_len_ls}')
+    logger.debug(f'Annotations: {anno_len_ls}')
+    logger.debug(f'Predictions: {pred_len_ls}')
 
     db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
     if json_min:
@@ -71,10 +71,10 @@ def run(project_id, json_min=False):
             and ls_lens != mdb_lens) or (json_min
                                          and anno_len_ls != anno_len_mdb):
         _msg = lambda x: f'Difference in {x} number'
-        logger.debug(f'Project {project_id} has changed. Updating...\n'
-                     f'{_msg("tasks")}: {tasks_len_ls - tasks_len_mdb}\n'
-                     f'{_msg("annotations")}: {anno_len_ls - anno_len_mdb}\n'
-                     f'{_msg("predictions")}: {pred_len_ls - pred_len_mdb}')
+        logger.debug(f'Project {project_id} has changed. Updating...')
+        logger.debug(f'{_msg("tasks")}: {tasks_len_ls - tasks_len_mdb}')
+        logger.debug(f'{_msg("annotations")}: {anno_len_ls - anno_len_mdb}')
+        logger.debug(f'{_msg("predictions")}: {pred_len_ls - pred_len_mdb}')
 
         if json_min:
             data = api_request(
