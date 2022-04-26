@@ -61,9 +61,9 @@ def run(project_id, json_min=False):
     else:
         col = db[f'project_{project_id}']
 
-    tasks_len_mdb = len(list(col.find({}, {})))
-    anno_len_mdb = len(list(col.find({"annotations": {'$ne': []}}, {})))
-    pred_len_mdb = len(list(db[f'project_{project_id}_preds'].find({}, {})))
+    tasks_len_mdb = len(list(col.find({})))
+    anno_len_mdb = len(list(col.find({"annotations": {'$ne': []}})))
+    pred_len_mdb = len(list(db[f'project_{project_id}_preds'].find({})))
 
     mdb_lens = (tasks_len_mdb, anno_len_mdb, pred_len_mdb)
 
