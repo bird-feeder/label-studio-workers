@@ -70,7 +70,7 @@ def main():
         logger.info('Running `sync_images`')
         sync_images()
 
-    logger.info(f'End. Took {round(start - time.time(), 2)}')
+    logger.info(f'End. Took {round(time.time() - start, 2)}')
 
 
 if __name__ == '__main__':
