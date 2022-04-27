@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     for project in projects:
         create_rare_classes_view = CreateRareClassesView(
-            project_id=args.project_id,
+            project_id=project,
             model_version=args.model_version,
             method=args.method)
         _ = create_rare_classes_view.create_view()
