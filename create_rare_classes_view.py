@@ -135,7 +135,6 @@ class CreateRareClassesView:
                 url = f'{os.environ["LS_HOST"]}/api/dm/views/{existing_view_id}'
                 resp = requests.delete(url, headers=headers)
 
-
         url = f'{os.environ["LS_HOST"]}/api/dm/views/'
         logger.debug(f'Request: {url} -d {view_template}')
         resp = requests.post(url,
@@ -150,7 +149,10 @@ if __name__ == '__main__':
     load_dotenv()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--project-id', help='Project ID', required=True)
+    parser.add_argument('-p', '--project-id', help='Project ID')
+    parser.add_argument('--all-projects',
+                        action='store_true',
+                        help='Run on all projects')
     parser.add_argument('-v',
                         '--model-version',
                         help='Model version',
@@ -165,8 +167,17 @@ if __name__ == '__main__':
         default='median')
     args = parser.parse_args()
 
-    create_rare_classes_view = CreateRareClassesView(
-        project_id=args.project_id,
-        model_version=args.model_version,
-        method=args.method)
-    _ = create_rare_classes_view.create_view()
+    if not args.all_projects and not args.project_id:
+        raise SystemExit('Must pick at least one project id!')
+
+    if args.all_projects:
+        projects = os.environ['PROJECTS_ID'].split(',')
+    else:
+        projects = [args.project_id]
+
+    for project in projects:
+        create_rare_classes_view = CreateRareClassesView(
+            project_id=args.project_id,
+            model_version=args.model_version,
+            method=args.method)
+        _ = create_rare_classes_view.create_view()
