@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 import time
+from pathlib import Path
 
 import ray
 import requests
@@ -29,8 +30,8 @@ def keyboard_interrupt_handler(sig, _):
 def img_url_to_binary(x):
     return {
         '_id': x['_id'],
-        'file_name': x['data']['_image'].replace('https://srv.aibird.me/', ''),
-        'image': gzip.compress(requests.get(x['data']['_image']).content)
+        'file_name': Path(x['data']['image'].split('?')[0]).name,
+        'image': gzip.compress(requests.get(x['data']['image']).content)
     }
 
 

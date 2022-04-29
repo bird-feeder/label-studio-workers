@@ -1,6 +1,7 @@
 name: Create Rare Classes View
 
 on:
+  push:
   schedule:
     - cron: '0 */12 * * *'
 

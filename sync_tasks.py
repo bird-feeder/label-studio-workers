@@ -93,7 +93,6 @@ def run(project_id, json_min=False):
             task.update({
                 '_id': task['id'],
                 'data': {
-                    '_image': to_srv(img),
                     'image': img
                 }
             })
