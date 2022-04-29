@@ -15,11 +15,6 @@ from mongodb_helper import mongodb_db
 from sync_preds import process_preds
 
 
-def to_srv(url):
-    return url.replace(f'{os.environ["LS_HOST"]}/data/local-files/?d=',
-                       f'{os.environ["SRV_HOST"]}/')
-
-
 def api_request(url):
     headers = requests.structures.CaseInsensitiveDict()
     headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
@@ -90,12 +85,7 @@ def run(project_id, json_min=False):
                 img = task['image']
             else:
                 img = task['data']['image']
-            task.update({
-                '_id': task['id'],
-                'data': {
-                    'image': img
-                }
-            })
+            task.update({'_id': task['id'], 'data': {'image': img}})
 
         col.drop()
         col.insert_many(data)
@@ -132,8 +122,7 @@ def sync_tasks(projects_id=None):
             run(project_id, is_json_min)
             logger.info(
                 f'Finished processing project {project_id} (is_json_min: '
-                f'{is_json_min})'
-            )
+                f'{is_json_min})')
 
 
 if __name__ == '__main__':
