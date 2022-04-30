@@ -31,23 +31,6 @@ def keyboard_interrupt_handler(sig, _):
     sys.exit(1)
 
 
-def checks():
-    for k in [
-            'PROJECTS_ID', 'DB_CONNECTION_STRING', 'DB_NAME', 'LS_HOST',
-            'SRV_HOST', 'TOKEN', 'PATH_TO_SRC_DIR',
-            'PATH_TO_SRC_DIR_ON_CONTAINER', 'REMOTE_PATH',
-            'REMOTE_DOWNLOADED_PATH'
-    ]:
-        if not os.getenv(k):
-            raise MissingEnvironmentVariable(
-                f'`{k}` is required, but is not defined in `.env`!')
-
-    if os.getenv('PATH_TO_SRC_DIR'):
-        if not Path(os.getenv('PATH_TO_SRC_DIR')).exists():
-            raise FileNotFoundError(
-                f'{os.getenv("PATH_TO_SRC_DIR")} does not exist!')
-
-
 def opts():
     parser = argparse.ArgumentParser()
     parser.add_argument('-o',
