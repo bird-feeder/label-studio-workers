@@ -65,10 +65,9 @@ class CreateRareClassesView:
                 'hiddenColumns': {
                     'explore': [
                         'tasks:annotations_results', 'tasks:annotations_ids',
-                        'tasks:predictions_score',
-                        'tasks:predictions_model_versions',
-                        'tasks:predictions_results', 'tasks:file_upload',
-                        'tasks:created_at', 'tasks:updated_at'
+                        'tasks:predictions_score', 'tasks:predictions_results',
+                        'tasks:file_upload', 'tasks:created_at',
+                        'tasks:updated_at'
                     ],
                     'labeling': [
                         'tasks:id', 'tasks:completed_at',
