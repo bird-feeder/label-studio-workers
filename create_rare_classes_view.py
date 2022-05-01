@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from mongodb_helper import mongodb_db
+from utils import add_logger, catch_keyboard_interrupt, upload_logs
 
 
 class CreateRareClassesView:
@@ -29,6 +30,9 @@ class CreateRareClassesView:
         return headers
 
     def create_view(self):
+        logs_file = add_logger(__file__)
+        catch_keyboard_interrupt()
+
         db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
         if self.model_version == 'latest':
             latest_model_ts = max(db.model.find().distinct('added_on'))
@@ -166,6 +170,8 @@ class CreateRareClassesView:
                              data=json.dumps(view_template))
         new_view = resp.json()
         logger.debug(f'Response: {new_view}')
+
+        upload_logs(logs_file)
         return new_view
 
 

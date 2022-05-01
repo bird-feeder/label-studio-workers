@@ -13,6 +13,7 @@ from loguru import logger
 
 from mongodb_helper import mongodb_db
 from sync_preds import process_preds
+from utils import add_logger, catch_keyboard_interrupt, upload_logs
 
 
 def api_request(url):
@@ -112,6 +113,9 @@ def opts():
 
 
 def sync_tasks(projects_id=None):
+    logs_file = add_logger(__file__)
+    catch_keyboard_interrupt()
+
     if not projects_id:
         projects_id = os.environ['PROJECTS_ID'].split(',')
     else:
@@ -124,10 +128,12 @@ def sync_tasks(projects_id=None):
                 f'Finished processing project {project_id} (is_json_min: '
                 f'{is_json_min})')
 
+    upload_logs(logs_file)
+    return
+
 
 if __name__ == '__main__':
     load_dotenv()
-    logger.add('logs.log')
     args = opts()
     if args.once:
         sync_tasks(args.projects_id)

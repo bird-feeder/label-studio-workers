@@ -6,7 +6,6 @@ import json
 import os
 import random
 import shlex
-import signal
 import subprocess
 import sys
 import time
@@ -21,11 +20,7 @@ import schedule
 from dotenv import load_dotenv
 from loguru import logger
 
-
-def keyboard_interrupt_handler(sig, _):
-    print(f'KeyboardInterrupt (ID: {sig}) has been caught...')
-    print('Terminating the session gracefully...')
-    sys.exit(1)
+from utils import add_logger, catch_keyboard_interrupt, upload_logs
 
 
 def _run(cmd):
@@ -182,16 +177,20 @@ def rclone_files_handler(project_id):
 
 
 def sync_local_storage():
+    logs_file = add_logger(__file__)
+    catch_keyboard_interrupt()
+
     logger.debug('--------------------START--------------------')
     proj_id_to_use = handle_project()
     rclone_files_handler(proj_id_to_use)
     logger.debug('--------------------END--------------------')
 
+    upload_logs(logs_file)
+    return
+
 
 if __name__ == '__main__':
     load_dotenv()
-    logger.add('logs.log')
-    signal.signal(signal.SIGINT, keyboard_interrupt_handler)
 
     if '--once' in sys.argv:
         sync_local_storage()

@@ -3,12 +3,9 @@
 
 import argparse
 import os
-import signal
 import sys
 import time
-from pathlib import Path
 
-import ray
 import schedule
 from dotenv import load_dotenv
 from loguru import logger
@@ -17,18 +14,11 @@ from create_rare_classes_view import CreateRareClassesView
 from sync_images import sync_images
 from sync_local_storage import sync_local_storage
 from sync_tasks import sync_tasks
+from utils import add_logger, catch_keyboard_interrupt, upload_logs
 
 
 class MissingEnvironmentVariable(Exception):
     pass
-
-
-def keyboard_interrupt_handler(sig, _):
-    logger.warning(f'KeyboardInterrupt (ID: {sig}) has been caught...')
-    logger.warning('Shutting down ray...')
-    ray.shutdown()
-    logger.warning('Terminating the session gracefully...')
-    sys.exit(1)
 
 
 def opts():
@@ -42,14 +32,15 @@ def opts():
 
 def main():
     start = time.time()
+    logs_file = add_logger(__file__)
+    catch_keyboard_interrupt()
 
     logger.info('Running `create_rare_classes_view`...')
     project_ids = os.environ['PROJECTS_ID'].split(',')
     for project_id in project_ids:
         logger.debug(f'Current project id: {project_id}')
-        create_rare_classes_view = CreateRareClassesView(project_id=project_id,
-                                                        model_version='latest',
-                                                        method='median')
+        create_rare_classes_view = CreateRareClassesView(
+            project_id=project_id, model_version='latest', method='median')
         _ = create_rare_classes_view.create_view()
 
     logger.info('Running `sync_local_storage`...')
@@ -64,11 +55,12 @@ def main():
 
     logger.info(f'End. Took {round(time.time() - start, 2)}s')
 
+    upload_logs(logs_file)
+    return
+
 
 if __name__ == '__main__':
     load_dotenv()
-    logger.add(f'{Path(__file__).parent}/logs.log')
-    signal.signal(signal.SIGINT, keyboard_interrupt_handler)
     args = opts()
 
     if args.once:

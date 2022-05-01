@@ -3,8 +3,6 @@
 
 import argparse
 import os
-import signal
-import sys
 import traceback
 
 import ray
@@ -14,13 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from mongodb_helper import mongodb_db, get_tasks_from_mongodb
-
-
-def keyboard_interrupt_handler(sig, _):
-    logger.warning(f'KeyboardInterrupt (ID: {sig}) has been caught...')
-    ray.shutdown()
-    logger.warning('Terminating the session gracefully...')
-    sys.exit(1)
+from utils import add_logger, catch_keyboard_interrupt, upload_logs
 
 
 def make_headers():
@@ -91,24 +83,28 @@ def process_preds(db, projects_id):
     return
 
 
-def opts():
+def sync_preds(projects_id=None):
+    logs_file = add_logger(__file__)
+    catch_keyboard_interrupt()
+
+    if not projects_id:
+        projects_id = os.environ['PROJECTS_ID']
+    db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
+    process_preds(db, projects_id)
+
+    upload_logs(logs_file)
+    return
+
+
+if __name__ == '__main__':
+    load_dotenv()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-p',
                         '--projects-id',
                         help='Comma-seperated projects ID',
                         type=str,
                         default=os.environ['PROJECTS_ID'])
-    return parser.parse_args()
+    args = parser.parse_args()
 
-
-def sync_preds():
-    db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
-    process_preds(db, args.projects_id)
-    return
-
-
-if __name__ == '__main__':
-    load_dotenv()
-    signal.signal(signal.SIGINT, keyboard_interrupt_handler)
-    args = opts()
-    sync_preds()
+    sync_preds(args.projects_id)
