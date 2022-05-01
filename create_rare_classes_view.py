@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import argparse
+import copy
 import json
 import os
 
@@ -58,7 +59,7 @@ class CreateRareClassesView:
         view_template = {
             'data': {
                 'type': 'list',
-                'title': 'DONT_REMOVE_THIS_TAB',
+                'title': '',
                 'target': 'tasks',
                 'gridWidth': 4,
                 'columnsWidth': {},
@@ -99,6 +100,8 @@ class CreateRareClassesView:
             }
         }
 
+        default_view = copy.deepcopy(view_template)
+
         filterd_labels = []
         for label in labels_with_few_annos:
             filterd_labels.append({
@@ -116,13 +119,35 @@ class CreateRareClassesView:
 
         url = f'{os.environ["LS_HOST"]}/api/dm/views?project={self.project_id}'
         resp = requests.get(url, headers=headers)
+
+        default_tab = [
+            x for x in resp.json() if x['data']['title'] == 'Default'
+        ]
+
+        if not default_tab:
+            logger.debug(
+                f'Creating default view for project {self.project_id}')
+            default_view.update({'project': self.project_id})
+            default_view['data']['title'] = 'Default'
+            default_view['data'].pop('filters')
+            url = f'{os.environ["LS_HOST"]}/api/dm/views/'
+            new_view_resp = requests.post(url,
+                                          headers=headers,
+                                          data=json.dumps(default_view))
+            new_default_view = new_view_resp.json()
+            logger.debug(f'Response: {new_default_view}')
+
         existing_rare_classes_tab = [
             x for x in resp.json() if x['data']['title'] == 'rare_classes'
         ]
 
+        version_col = 'tasks:predictions_model_versions'
+        explore_dict = existing_rare_classes_tab[0]['data']['hiddenColumns'][
+            'explore']
+
         if existing_rare_classes_tab:
             if existing_rare_classes_tab[0]['data']['filters'][
-                    'items'] == filterd_labels:
+                    'items'] == filterd_labels and version_col in explore_dict:
                 logger.debug(
                     'An identical `rare_classes` view already exists for '
                     f'project {self.project_id}. Skipping...')
