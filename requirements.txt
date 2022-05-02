@@ -6,3 +6,4 @@ loguru>=0.5.3
 pymongo[srv]>=4.0.2
 tqdm>=4.62.3
 matplotlib
+minio>=7.1.7

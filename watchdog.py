@@ -107,7 +107,11 @@ class WatchDog:
                     shutil.move(file, dst)
 
         for empty_folder in new_folders:
-            if not glob(f'{empty_folder}/*'):
+            contains_any_file = [
+                x for x in glob(f'{empty_folder}/**/*', recursive=True)
+                if not Path(x).is_dir()
+            ]
+            if not contains_any_file:
                 shutil.rmtree(empty_folder)
 
     def watch(self):
@@ -120,7 +124,7 @@ class WatchDog:
                 logger.debug('Detected change!')
                 global_state = copy.deepcopy(local_state)
                 self.arrange_new_data_files()
-            time.sleep(5)
+            time.sleep(60)
 
 
 if __name__ == '__main__':
@@ -136,5 +140,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     watch_dog = WatchDog(root_data_folder=args.root_data_folder,
-                    images_per_folder=args.images_per_folder)
+                         images_per_folder=args.images_per_folder)
     watch_dog.watch()
