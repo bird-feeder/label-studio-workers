@@ -49,50 +49,47 @@ def get_project_pred_ids(db, project_id):
     return all_pred_ids
 
 
-def process_preds(db, projects_id):
-    projects_id = projects_id.split(',')
+def process_preds(db, project_id):
+    prediction_ids = get_project_pred_ids(db, project_id)
+    if not prediction_ids:
+        logger.debug(
+            f'All predictions in project {project_id} are up-to-date')
+        return
 
-    for project_id in tqdm(projects_id, desc='Projects'):
+    futures = []
+    for pred_id in prediction_ids:
+        futures.append(get_pred_details.remote(pred_id))
 
-        prediction_ids = get_project_pred_ids(db, project_id)
-        if not prediction_ids:
-            logger.debug(
-                f'All predictions in project {project_id} are up-to-date')
+    for future in tqdm(futures, desc='Futures'):
+        try:
+            result = ray.get(future)
+        except Exception as e:  # temp debug
+            ray.cancel(future)
+            logger.error(
+                '>>>>>>>>>>>>>>>>>>>> Unexpected exception')  # temp debug
+            logger.error(traceback.format_exc())  # temp debug
+            logger.error('<<<<<<<<<<<<<<<<<<<<')  # temp debug
             continue
-
-        futures = []
-        for pred_id in prediction_ids:
-            futures.append(get_pred_details.remote(pred_id))
-
-        for future in tqdm(futures, desc='Futures'):
-            try:
-                result = ray.get(future)
-            except Exception as e:  # temp debug
-                ray.cancel(future)
-                logger.error(
-                    '>>>>>>>>>>>>>>>>>>>> Unexpected exception')  # temp debug
-                logger.error(traceback.format_exc())  # temp debug
-                logger.error('<<<<<<<<<<<<<<<<<<<<')  # temp debug
-                continue
-            if isinstance(result, dict):
-                result.update({'_id': result['id']})
-                db[f'project_{project_id}_preds'].insert_one(result)
-            else:
-                logger.error('Result is not instance of dict!')  # temp debug
-                logger.error(f'Result: {result}')  # temp debug
+        if isinstance(result, dict):
+            result.update({'_id': result['id']})
+            db[f'project_{project_id}_preds'].insert_one(result)
+        else:
+            logger.error('Result is not instance of dict!')  # temp debug
+            logger.error(f'Result: {result}')  # temp debug
     return
 
 
-def sync_preds(projects_id=None):
-    logs_file = add_logger(__file__)
+def sync_preds(project_ids=None):
     catch_keyboard_interrupt()
 
-    if not projects_id:
-        projects_id = os.environ['PROJECTS_ID']
     db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
-    process_preds(db, projects_id)
+    project_ids = project_ids.split(',')
 
-    upload_logs(logs_file)
+    if len(project_ids) > 1:
+        for project_id in tqdm(project_ids, desc='Projects'):
+            process_preds(db, project_id)
+    else:
+        process_preds(db, project_ids[0])
     return
 
 
@@ -107,4 +104,4 @@ if __name__ == '__main__':
                         default=os.environ['PROJECTS_ID'])
     args = parser.parse_args()
 
-    sync_preds(args.projects_id)
+    sync_preds(args.project_ids)

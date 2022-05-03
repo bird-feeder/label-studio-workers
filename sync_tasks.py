@@ -3,17 +3,16 @@
 
 import argparse
 import os
-import sys
-import time
 
+import ray
 import requests
-import schedule
 from dotenv import load_dotenv
 from loguru import logger
+from tqdm import tqdm
 
 from mongodb_helper import mongodb_db
 from sync_preds import process_preds
-from utils import add_logger, catch_keyboard_interrupt, upload_logs
+from utils import catch_keyboard_interrupt
 
 
 def api_request(url):
@@ -23,6 +22,7 @@ def api_request(url):
     return resp.json()
 
 
+@ray.remote
 def run(project_id, json_min=False):
     """This function is used to update the database with the latest data from
     the server.
@@ -40,16 +40,15 @@ def run(project_id, json_min=False):
 
     tasks_len_ls = project_data['task_number']
     if tasks_len_ls == 0:
-        logger.warning(f'No tasks in project {project_id}! Skipping...')
+        logger.warning(f'(project: {project_id}) Empty project! Skipping...')
         return
     anno_len_ls = project_data['num_tasks_with_annotations']
     pred_len_ls = project_data['total_predictions_number']
 
     ls_lens = (tasks_len_ls, anno_len_ls, pred_len_ls)
-    logger.debug(f'Project {project_id}:')
-    logger.debug(f'Tasks: {tasks_len_ls}')
-    logger.debug(f'Annotations: {anno_len_ls}')
-    logger.debug(f'Predictions: {pred_len_ls}')
+    logger.debug(f'(project: {project_id}) Tasks: {tasks_len_ls}')
+    logger.debug(f'(project: {project_id}) Annotations: {anno_len_ls}')
+    logger.debug(f'(project: {project_id}) Predictions: {pred_len_ls}')
 
     db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
     if json_min:
@@ -67,10 +66,14 @@ def run(project_id, json_min=False):
             and ls_lens != mdb_lens) or (json_min
                                          and anno_len_ls != anno_len_mdb):
         _msg = lambda x: f'Difference in {x} number'
-        logger.debug(f'Project {project_id} has changed. Updating...')
-        logger.debug(f'{_msg("tasks")}: {tasks_len_ls - tasks_len_mdb}')
-        logger.debug(f'{_msg("annotations")}: {anno_len_ls - anno_len_mdb}')
-        logger.debug(f'{_msg("predictions")}: {pred_len_ls - pred_len_mdb}')
+        logger.debug(
+            f'(project: {project_id}) Project has changed. Updating...')
+        logger.debug(f'(project: {project_id}) {_msg("tasks")}: '
+                     f'{tasks_len_ls - tasks_len_mdb}')
+        logger.debug(f'(project: {project_id}) {_msg("annotations")}: '
+                     f'{anno_len_ls - anno_len_mdb}')
+        logger.debug(f'(project: {project_id}) {_msg("predictions")}: '
+                     f'{pred_len_ls - pred_len_mdb}')
 
         if json_min:
             data = api_request(
@@ -92,54 +95,37 @@ def run(project_id, json_min=False):
         col.insert_many(data)
 
     else:
-        logger.debug(f'No changes were detected in project {project_id}...')
+        logger.debug(f'(project: {project_id}) No changes were detected...')
 
     if pred_len_ls != pred_len_mdb:
-        logger.debug('Syncing predictions...')
+        logger.debug(f'(project: {project_id}) Syncing predictions...')
         process_preds(db, project_id)
 
-
-def opts():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-p',
-                        '--projects-id',
-                        help='Comma-seperated projects ID',
-                        type=str)
-    parser.add_argument('-o',
-                        '--once',
-                        help='Run once and exit',
-                        action='store_true')
-    return parser.parse_args()
+    logger.info(f'(project: {project_id}) Finished (json_min: {json_min}).')
 
 
-def sync_tasks(projects_id=None):
-    logs_file = add_logger(__file__)
+def sync_tasks(projects_id):
     catch_keyboard_interrupt()
 
-    if not projects_id:
-        projects_id = os.environ['PROJECTS_ID'].split(',')
-    else:
-        projects_id = projects_id.split(',')
+    projects_id = projects_id.split(',')
 
-    for is_json_min in [False, True]:
-        for project_id in projects_id:
-            run(project_id, is_json_min)
-            logger.info(
-                f'Finished processing project {project_id} (is_json_min: '
-                f'{is_json_min})')
+    futures = []
+    for project_id in projects_id:
+        futures.append(run.remote(project_id, json_min=False))
+        futures.append(run.remote(project_id, json_min=True))
 
-    upload_logs(logs_file)
+    for future in tqdm(futures, desc='Projects'):
+        ray.get(future)
     return
 
 
 if __name__ == '__main__':
     load_dotenv()
-    args = opts()
-    if args.once:
-        sync_tasks(args.projects_id)
-        sys.exit(0)
-    schedule.every(10).minutes.do(sync_tasks)
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p',
+                        '--projects-id',
+                        help='Comma-seperated projects ID',
+                        type=str,
+                        default=os.environ['PROJECTS_ID'])
+    args = parser.parse_args()
+    sync_tasks(args.projects_id)
