@@ -17,7 +17,9 @@ nano .env  # or any other editor
 ```
 
 ```shell
-PYTHON_BIN=$(which python)  # for pyenv: PYTHON_BIN=$(pyenv which python)
+PYTHON_BIN=$(which python)  # for pyenv, use: PYTHON_BIN=$(pyenv which python)
+PATH_TO_S3_DATA_BUCKET="REPLACE_ME"
+
 
 echo "[Unit]
 Description=sync data
@@ -33,10 +35,32 @@ Restart=always
 [Install]
 WantedBy=multi-user.target" > sync_data.service
 
+
+echo "[Unit]
+Description=tasks data watchdog
+Requires=network.target
+
+[Service]
+Type=idle
+User=root
+WorkingDirectory=$PWD
+ExecStart=$PYTHON_BIN watchdog.py --root-data-folder $PATH_TO_S3_DATA_BUCKET
+Restart=always
+
+[Install]
+WantedBy=multi-user.target" > tasks_data_watchdog.service
+
+
 mv sync_data.service /etc/systemd/system/sync_data.service
+mv tasks_data_watchdog.service /etc/systemd/system/tasks_data_watchdog.service
 
 systemctl daemon-reload
 systemctl start sync_data.service
 systemctl enable sync_data.service
+
+systemctl start tasks_data_watchdog.service
+systemctl enable tasks_data_watchdog.service
+
 systemctl status sync_data.service
+systemctl status tasks_data_watchdog.service
 ```
