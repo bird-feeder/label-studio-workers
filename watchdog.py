@@ -4,6 +4,7 @@
 import argparse
 import copy
 import imghdr
+import os
 import shutil
 import signal
 import sys
@@ -116,7 +117,17 @@ class WatchDog:
 
     def watch(self):
         signal.signal(signal.SIGINT, self.keyboard_interrupt_handler)
+
+        if os.geteuid() != 0 and not args.no_root:
+            raise PermissionError(
+                'You need root access to run this module. If the buckets '
+                'don\'t require root access for write operations, rerun with '
+                'the flag `--no-root`')
+
+        Path(f'{self.root_data_folder}/project-0001').mkdir(exist_ok=True)
+
         logger.debug('Started watchdog...')
+
         global_state = glob(f'{self.root_data_folder}/**/*', recursive=True)
         while True:
             local_state = glob(f'{self.root_data_folder}/**/*', recursive=True)
@@ -137,6 +148,11 @@ if __name__ == '__main__':
                         help='Number of images per folder',
                         type=int,
                         default=1000)
+    parser.add_argument(
+        '--no-root',
+        action='store_true',
+        help=
+        'Use if the buckets don\'t require root access for write operations')
     args = parser.parse_args()
 
     watch_dog = WatchDog(root_data_folder=args.root_data_folder,
