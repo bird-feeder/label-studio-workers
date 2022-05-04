@@ -36,4 +36,4 @@ jobs:
         MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
         MINIO_REGION: ${{ secrets.MINIO_REGION }}
       run: |
-        python sync_tasks.py --once
+        python sync_tasks.py
