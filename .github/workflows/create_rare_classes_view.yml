@@ -36,4 +36,4 @@ jobs:
         S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
         S3_REGION: ${{ secrets.S3_REGION }}
       run: |
-        python create_rare_classes_view.py --all-projects --model-version latest
+        python create_rare_classes_view.py --model-version latest
