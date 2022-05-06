@@ -12,8 +12,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from mongodb_helper import mongodb_db
-from utils import (add_logger, catch_keyboard_interrupt, upload_logs,
-                   get_project_ids)
+from utils import add_logger, catch_keyboard_interrupt, upload_logs, get_project_ids
 
 
 class CreateRareClassesView:
@@ -148,14 +147,13 @@ class CreateRareClassesView:
             x for x in resp.json() if x['data']['title'] == 'rare_classes'
         ]
 
-        version_col = 'tasks:predictions_model_versions'
-        explore_dict = existing_rare_classes_tab[0]['data']['hiddenColumns'][
-            'explore']
-
         if existing_rare_classes_tab:
+            version_col = 'tasks:predictions_model_versions'
+            explore_dict = existing_rare_classes_tab[0]['data'][
+                'hiddenColumns']['explore']
             if existing_rare_classes_tab[0]['data']['filters'][
-                    'items'] == filtered_labels and (version_col in
-                                                     explore_dict):
+                    'items'] == filtered_labels and (version_col
+                                                     in explore_dict):
                 logger.debug(
                     'An identical `rare_classes` view already exists for '
                     f'project {self.project_id}. Skipping...')
