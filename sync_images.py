@@ -16,7 +16,8 @@ from pymongo.errors import DuplicateKeyError
 from tqdm import tqdm
 
 from mongodb_helper import get_tasks_from_mongodb, mongodb_db
-from utils import add_logger, catch_keyboard_interrupt, upload_logs
+from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
+    get_project_ids
 
 
 @ray.remote
@@ -44,10 +45,15 @@ def sync_images():
     main_db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
 
     existing_ids = db.images.find().distinct('_id')
-    projects_id = os.environ['PROJECTS_ID'].split(',')
+
+    if not args.project_ids:
+        project_ids = get_project_ids().split(',')
+    else:
+        project_ids = args.project_ids.split(',')
+
     data = sum([
         get_tasks_from_mongodb(main_db, project_id, dump=False, json_min=False)
-        for project_id in projects_id
+        for project_id in project_ids
     ], [])
 
     data = [x for x in data if x['_id'] not in existing_ids]

@@ -23,10 +23,10 @@ def add_logger(current_file):
 
 
 def upload_logs(logs_file):
-    client = minio.Minio(os.environ['MINIO_ENDPOINT'],
-                         access_key=os.environ['MINIO_ACCESS_KEY'],
-                         secret_key=os.environ['MINIO_SECRET_KEY'],
-                         region=os.environ['MINIO_REGION'])
+    client = minio.Minio(os.environ['S3_ENDPOINT'],
+                         access_key=os.environ['S3_ACCESS_KEY'],
+                         secret_key=os.environ['S3_SECRET_KEY'],
+                         region=os.environ['S3_REGION'])
     file = Path(logs_file)
     try:
         logger.debug('Uploading logs...')

@@ -12,7 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from mongodb_helper import mongodb_db, get_tasks_from_mongodb
-from utils import catch_keyboard_interrupt
+from utils import catch_keyboard_interrupt, get_project_ids
 
 
 def make_headers():
@@ -76,17 +76,18 @@ def process_preds(db, project_id):
     return
 
 
-def sync_preds(project_ids=None):
+def sync_preds():
     catch_keyboard_interrupt()
 
     db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
-    project_ids = project_ids.split(',')
 
-    if len(project_ids) > 1:
-        for project_id in tqdm(project_ids, desc='Projects'):
-            process_preds(db, project_id)
+    if not args.project_ids:
+        project_ids = get_project_ids().split(',')
     else:
-        process_preds(db, project_ids[0])
+        project_ids = args.project_ids.split(',')
+
+    for project_id in tqdm(project_ids, desc='Projects'):
+        process_preds(db, project_id)
     return
 
 
@@ -95,10 +96,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-p',
-                        '--projects-id',
-                        help='Comma-seperated projects ID',
-                        type=str,
-                        default=os.environ['PROJECTS_ID'])
+                        '--project-ids',
+                        help='Comma-seperated project ids',
+                        type=str)
     args = parser.parse_args()
 
-    sync_preds(args.project_ids)
+    sync_preds()

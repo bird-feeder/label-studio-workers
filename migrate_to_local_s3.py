@@ -22,11 +22,11 @@ from tqdm.contrib import tzip
 class MigrateToS3:
 
     def __init__(self,
-                 minio_folder: str,
+                 s3_folder: str,
                  template_project_id: int,
                  old_project_ids: list,
                  images_per_folder: int = 1000):
-        self.minio_folder = minio_folder
+        self.s3_folder = s3_folder
         self.template_project_id = template_project_id
         self.old_project_ids = old_project_ids
         self.images_per_folder = images_per_folder
@@ -63,10 +63,10 @@ class MigrateToS3:
             all_existing_tasks_data.append(data)
         return all_existing_tasks_data
 
-    def copy_data_to_minio(self) -> list:
+    def copy_data_to_s3(self) -> list:
         """Create folders with `n` images per folder from the images inside
-        `minio_folder`"""
-        files = sorted(glob(f'{self.minio_folder}/*'))
+        `s3_folder`"""
+        files = sorted(glob(f'{self.s3_folder}/*'))
         i = len(files) / self.images_per_folder
         if i != int(i):
             i = int(i) + 1
@@ -75,7 +75,7 @@ class MigrateToS3:
             for i in range(0, len(files), self.images_per_folder)
         ]
         for chunk in tqdm(chunks, desc='Chunks'):
-            chunk_folder = f'{self.minio_folder}/project-{str(i).zfill(4)}'
+            chunk_folder = f'{self.s3_folder}/project-{str(i).zfill(4)}'
             Path(chunk_folder).mkdir()
             for file in tqdm(chunk, desc='Files'):
                 shutil.move(file, chunk_folder)
@@ -118,10 +118,10 @@ class MigrateToS3:
                 "bucket": "data",
                 "prefix": project_name,
                 "use_blob_urls": True,
-                "aws_access_key_id": os.environ['MINIO_ACCESS_KEY'],
-                "aws_secret_access_key": os.environ['MINIO_SECRET_KEY'],
+                "aws_access_key_id": os.environ['S3_ACCESS_KEY'],
+                "aws_secret_access_key": os.environ['S3_SECRET_KEY'],
                 "region_name": 'us-east-1',
-                "s3_endpoint": os.environ['MINIO_ENDPOINT'],
+                "s3_endpoint": os.environ['S3_ENDPOINT'],
                 "recursive_scan": True,
                 "project": project_id
             }
@@ -178,7 +178,7 @@ class MigrateToS3:
 
     def run(self):
         # STEP 1
-        list_of_projects_to_create = self.copy_data_to_minio()
+        list_of_projects_to_create = self.copy_data_to_s3()
         # STEP 2
         project_ids = self.create_new_projects(list_of_projects_to_create)
         # STEP 3
@@ -195,11 +195,11 @@ if __name__ == '__main__':
     logger.add('logs.log')
     logger.warning(
         'ALL IMAGES SHOULD BE INSIDE ONE FOLDER. USE THAT FOLDER AS '
-        'AN INPUT TO `--minio-folder`')
+        'AN INPUT TO `--s3-folder`')
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--minio-folder',
-        help='Path to the folder where the minio bucket data are stored',
+        '--s3-folder',
+        help='Path to the folder where the S3 bucket data are stored',
         type=str)
     parser.add_argument(
         '--template-project-id',
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
     old_proj_ids = args.old_project_ids.split(',')
 
-    migrate = MigrateToS3(minio_folder=args.minio_folder,
+    migrate = MigrateToS3(s3_folder=args.s3_folder,
                           template_project_id=args.template_project_id,
                           old_project_ids=old_proj_ids,
                           images_per_folder=args.images_per_folder)

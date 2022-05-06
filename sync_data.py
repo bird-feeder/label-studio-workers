@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import argparse
-import os
 import sys
 import time
 
@@ -14,7 +13,8 @@ from create_rare_classes_view import CreateRareClassesView
 # from sync_images import sync_images
 from sync_local_storage import sync_local_storage
 from sync_tasks import sync_tasks
-from utils import add_logger, catch_keyboard_interrupt, upload_logs
+from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
+    get_project_ids
 
 
 class MissingEnvironmentVariable(Exception):
@@ -36,7 +36,12 @@ def main():
     catch_keyboard_interrupt()
 
     logger.info('Running `create_rare_classes_view`...')
-    project_ids = os.environ['PROJECTS_ID'].split(',')
+
+    if not args.project_ids:
+        project_ids = get_project_ids().split(',')
+    else:
+        project_ids = args.project_ids.split(',')
+
     for project_id in project_ids:
         logger.debug(f'Current project id: {project_id}')
         create_rare_classes_view = CreateRareClassesView(
