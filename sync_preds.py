@@ -7,6 +7,7 @@ import traceback
 
 import ray
 import requests
+from pymongo.errors import DuplicateKeyError
 from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
@@ -69,7 +70,12 @@ def process_preds(db, project_id):
             continue
         if isinstance(result, dict):
             result.update({'_id': result['id']})
-            db[f'project_{project_id}_preds'].insert_one(result)
+            try:
+                db[f'project_{project_id}_preds'].insert_one(result)
+            except DuplicateKeyError:
+                db[f'project_{project_id}_preds'].delete_one(
+                    {'_id': result['_id']})
+                db[f'project_{project_id}_preds'].insert_one(result)
         else:
             logger.error('Result is not instance of dict!')  # temp debug
             logger.error(f'Result: {result}')  # temp debug
