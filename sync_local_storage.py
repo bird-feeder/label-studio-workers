@@ -55,7 +55,7 @@ def handle_project():
             projects.append((p['id'], p['title'], p['task_number']))
 
     cmd_size = f'rclone {os.environ["IS_SHARED"]} size ' \
-    f'{os.environ["REMOTE_PATH"]}'
+               f'{os.environ["REMOTE_PATH"]}'
     num_of_new_files = int(
         _run(cmd_size).split('Total objects:')[1].split(' (')[1].split(')')[0])
     logger.debug(f'num_of_new_files: {num_of_new_files}')
@@ -100,12 +100,12 @@ def sync_project(project_id):
 
     if not Path(f'{os.environ["PATH_TO_SRC_DIR"]}/{NEW_FOLDER_NAME}').exists():
         logger.error(
-            f'{os.environ["PATH_TO_SRC_DIR"]}/{NEW_FOLDER_NAME} does not exist!'
-        )
+            f'{os.environ["PATH_TO_SRC_DIR"]}/{NEW_FOLDER_NAME} does not '
+            'exist!')
         raise FileNotFoundError
 
     url = f'{os.environ["LS_HOST"]}/api/storages/localfiles?' \
-    f'project={project_id}'
+          f'project={project_id}'
     logger.debug(f'Request: {url}')
     resp = requests.get(url, headers=headers)
     response = resp.json()
@@ -127,7 +127,7 @@ def sync_project(project_id):
 
     if not EXISTS:
         data = "{" + f'"path":"{_PATH}","title":"{NEW_FOLDER_NAME}",' \
-        f'"use_blob_urls":"true","project":{project_id}' + "}"
+                     f'"use_blob_urls":"true","project":{project_id}' + "}"
         resp = requests.post(url, headers=headers, data=data)
         response = resp.json()
         logger.debug(f'Request URL: {url}')
@@ -137,7 +137,7 @@ def sync_project(project_id):
         logger.info(f'Create new local storage response: {response}')
         storage_id = response['id']
     else:
-        storage_id = x['id']
+        storage_id = x['id']  # noqa
 
     logger.debug('Running sync...')
     url = f'{os.environ["LS_HOST"]}/api/storages/localfiles/{storage_id}/sync'
@@ -152,8 +152,8 @@ def rclone_files_handler(project_id):
 
     logger.debug('Copying images from google drive to local storage')
     cmd_copy = f'rclone copy {os.environ["IS_SHARED"]} ' \
-    f'{os.environ["REMOTE_PATH"]} {source_path} -P --stats-one-line ' \
-    '--ignore-existing --transfers 32'
+               f'{os.environ["REMOTE_PATH"]} {source_path} -P ' \
+               f'--stats-one-line --ignore-existing --transfers 32'
     _run(cmd_copy)
 
     imgs = glob(f'{source_path}/*.jpg')
@@ -166,13 +166,13 @@ def rclone_files_handler(project_id):
 
     logger.debug('Creating -downloaded directory in remote')
     cmd_mkdir = f'rclone {os.environ["IS_SHARED"]} mkdir ' \
-    f'{os.environ["REMOTE_PATH"]}-downloaded/{ts}'
+                f'{os.environ["REMOTE_PATH"]}-downloaded/{ts}'
     _run(cmd_mkdir)
 
     logger.debug('Moving images between remote folders')
-    cmd_move = cmd_move = f'rclone {os.environ["IS_SHARED"]} move ' \
-    f'{os.environ["REMOTE_PATH"]} {os.environ["REMOTE_PATH"]}' \
-    f'-downloaded/{ts} -P --stats-one-line --transfers 32'
+    cmd_move = f'rclone {os.environ["IS_SHARED"]} move ' \
+               f'{os.environ["REMOTE_PATH"]} {os.environ["REMOTE_PATH"]} ' \
+               f'-downloaded/{ts} -P --stats-one-line --transfers 32'
     _run(cmd_move)
 
 

@@ -18,17 +18,22 @@ def mongodb_db(connection_string):
         The MongoDB database.
     """
     client = pymongo.MongoClient(connection_string)
-    db = client[os.environ['DB_NAME']]
-    return db
+    return client[os.environ['DB_NAME']]
 
 
-def get_tasks_from_mongodb(db, project_id, dump=True, json_min=False):
+def get_tasks_from_mongodb(db, project_id: str, dump=True, json_min=False):
     """Get tasks from MongoDB.
 
     Parameters
     ----------
-    project_id : int
+    db: pymongo.database.Database
+        The MongoDB database.
+    project_id : str
         The ID of the project to get tasks from.
+    dump : bool
+        Whether to dump the data to a JSON file.
+    json_min : bool
+        The data will be exported as JSON_MIN when set to True.
 
     Returns
     -------
@@ -51,5 +56,5 @@ if __name__ == '__main__':
     load_dotenv()
     if len(sys.argv) == 1:
         raise SystemExit('Missing project ID!')
-    db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
-    get_tasks_from_mongodb(db, sys.argv[1])
+    _db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
+    get_tasks_from_mongodb(_db, sys.argv[1])

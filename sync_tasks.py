@@ -8,15 +8,16 @@ import ray
 import requests
 from dotenv import load_dotenv
 from loguru import logger
+from requests.structures import CaseInsensitiveDict
 from tqdm import tqdm
 
 from mongodb_helper import mongodb_db
 from sync_preds import process_preds
-from utils import catch_keyboard_interrupt
+from utils import catch_keyboard_interrupt, get_project_ids
 
 
 def api_request(url):
-    headers = requests.structures.CaseInsensitiveDict()
+    headers = CaseInsensitiveDict()
     headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
     resp = requests.get(url, headers=headers)
     return resp.json()
@@ -65,7 +66,7 @@ def run(project_id, json_min=False):
     if (not json_min
             and ls_lens != mdb_lens) or (json_min
                                          and anno_len_ls != anno_len_mdb):
-        _msg = lambda x: f'Difference in {x} number'
+        _msg = lambda x: f'Difference in {x} number'  # noqa
         logger.debug(
             f'(project: {project_id}) Project has changed. Updating...')
         logger.debug(f'(project: {project_id}) {_msg("tasks")}: '
@@ -104,13 +105,16 @@ def run(project_id, json_min=False):
     logger.info(f'(project: {project_id}) Finished (json_min: {json_min}).')
 
 
-def sync_tasks(projects_id):
+def sync_tasks():
     catch_keyboard_interrupt()
 
-    projects_id = projects_id.split(',')
+    if not args.project_ids:
+        project_ids = get_project_ids().split(',')
+    else:
+        project_ids = args.project_ids.split(',')
 
     futures = []
-    for project_id in projects_id:
+    for project_id in project_ids:
         futures.append(run.remote(project_id, json_min=False))
         futures.append(run.remote(project_id, json_min=True))
 
@@ -123,9 +127,8 @@ if __name__ == '__main__':
     load_dotenv()
     parser = argparse.ArgumentParser()
     parser.add_argument('-p',
-                        '--projects-id',
-                        help='Comma-seperated projects ID',
-                        type=str,
-                        default=os.environ['PROJECTS_ID'])
+                        '--project-ids',
+                        help='Comma-seperated project ids',
+                        type=str)
     args = parser.parse_args()
-    sync_tasks(args.projects_id)
+    sync_tasks()

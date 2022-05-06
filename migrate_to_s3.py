@@ -2,13 +2,16 @@
 # coding: utf-8
 
 import argparse
+import copy
 import json
 import os
+import random
 import shutil
 from glob import glob
 from pathlib import Path
 
 import requests
+import seaborn as sns
 from dotenv import load_dotenv
 from loguru import logger
 from requests.structures import CaseInsensitiveDict
@@ -45,6 +48,8 @@ class MigrateToS3:
             resp = requests.post(url, headers=headers, data=data)
         elif method == 'patch':
             resp = requests.patch(url, headers=headers, data=data)
+        else:
+            resp = requests.get(url, headers=headers)
         response = resp.json()
         logger.debug(f'Response: {response}')
         return response
@@ -52,13 +57,13 @@ class MigrateToS3:
     def download_existing_project_tasks(self) -> list:
         all_existing_tasks_data = []
         for project_id in tqdm(self.old_project_ids):
-            data = api_request(
+            data = self.api_request(
                 f'{os.environ["LS_HOST"]}/api/projects/{project_id}/export'
                 '?exportType=JSON&download_all_tasks=true')
             all_existing_tasks_data.append(data)
         return all_existing_tasks_data
 
-    def copy_data_to_minio(self) -> int:
+    def copy_data_to_minio(self) -> list:
         """Create folders with `n` images per folder from the images inside
         `minio_folder`"""
         files = sorted(glob(f'{self.minio_folder}/*'))
@@ -77,9 +82,9 @@ class MigrateToS3:
             i += 1
         return list(range(1, len(chunks)))
 
-    def create_new_projects(self, list_of_projects_to_create: list) -> tuple:
-        template = self.api_request(
-            f'{os.environ["LS_HOST"]}/api/projects/{template_project_id}/')
+    def create_new_projects(self, list_of_projects_to_create: list) -> list:
+        template = self.api_request(f'{os.environ["LS_HOST"]}/api/projects/'
+                                    f'{self.template_project_id}/')
         project_ids = []
 
         for n in list_of_projects_to_create:
@@ -102,7 +107,7 @@ class MigrateToS3:
         return project_ids
 
     def add_and_sync_data_storage(self, list_of_projects_to_create,
-                                  project_ids) -> list:
+                                  project_ids) -> None:
         for project_name_num, project_id in tzip(list_of_projects_to_create,
                                                  project_ids):
             project_name = f'project-{str(project_name_num).zfill(4)}'
@@ -134,7 +139,7 @@ class MigrateToS3:
                 'method': 'post',
                 'data': json.dumps({'project': project_id})
             }
-            sync_response = self.api_request(**request)
+            _ = self.api_request(**request)
         return
 
     def post_existing_annotations_to_new_projects(self, project_ids,
@@ -168,14 +173,14 @@ class MigrateToS3:
                                 'method': 'post',
                                 'data': json.dumps(anno)
                             }
-                            response = self.api_request(**request)
+                            _ = self.api_request(**request)
         return
 
     def run(self):
         # STEP 1
         list_of_projects_to_create = self.copy_data_to_minio()
         # STEP 2
-        project_ids = create_new_projects(list_of_projects_to_create)
+        project_ids = self.create_new_projects(list_of_projects_to_create)
         # STEP 3
         self.add_and_sync_data_storage(list_of_projects_to_create, project_ids)
         # STEP 4
@@ -210,10 +215,10 @@ if __name__ == '__main__':
                         default=1000)
     args = parser.parse_args()
 
-    old_project_ids = args.old_project_ids.split(',')
+    old_proj_ids = args.old_project_ids.split(',')
 
     migrate = MigrateToS3(minio_folder=args.minio_folder,
                           template_project_id=args.template_project_id,
-                          old_project_ids=old_project_ids,
+                          old_project_ids=old_proj_ids,
                           images_per_folder=args.images_per_folder)
     migrate.run()

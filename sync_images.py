@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import argparse
 import gzip
 import os
 import sys
@@ -55,7 +56,6 @@ def sync_images():
     for x in data:
         futures.append(img_url_to_binary.remote(x))
 
-    results = []
     for future in tqdm(futures):
         insert_image(ray.get(future))
 

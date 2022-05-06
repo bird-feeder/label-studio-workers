@@ -28,8 +28,7 @@ class WatchDog:
         logger.info('Terminating the session gracefully...')
         sys.exit(1)
 
-    @staticmethod
-    def validate_image_file(file: str) -> str:
+    def validate_image_file(self, file: str) -> str:
         try:
             if imghdr.what(file) and Image.open(file):
                 return file
@@ -49,7 +48,7 @@ class WatchDog:
         Path(f'{self.root_data_folder}/project-{num}').mkdir()
         return f'{self.root_data_folder}/project-{num}'
 
-    def refresh_source(self) -> str:
+    def refresh_source(self) -> tuple:
         folders = glob(f'{self.root_data_folder}/*')
         project_folders = glob(f'{self.root_data_folder}/project-*')
         new_folders = list(set(folders).difference(project_folders))
@@ -93,9 +92,6 @@ class WatchDog:
         folders, project_folders, new_folders, new_files = self.refresh_source(
         )
 
-        i = len(new_files) / self.images_per_folder
-        if i != int(i):
-            i = int(i) + 1
         chunks = [
             new_files[i:i + self.images_per_folder]
             for i in range(0, len(new_files), self.images_per_folder)
@@ -148,11 +144,10 @@ if __name__ == '__main__':
                         help='Number of images per folder',
                         type=int,
                         default=1000)
-    parser.add_argument(
-        '--no-root',
-        action='store_true',
-        help=
-        'Use if the buckets don\'t require root access for write operations')
+    parser.add_argument('--no-root',
+                        action='store_true',
+                        help='Use if the buckets don\'t require root '
+                        'access for write operations')
     args = parser.parse_args()
 
     watch_dog = WatchDog(root_data_folder=args.root_data_folder,

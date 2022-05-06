@@ -12,7 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from mongodb_helper import mongodb_db, get_tasks_from_mongodb
-from utils import add_logger, catch_keyboard_interrupt, upload_logs
+from utils import catch_keyboard_interrupt
 
 
 def make_headers():
@@ -29,15 +29,13 @@ def get_pred_details(pred_id):
         url = f'{os.environ["LS_HOST"]}/api/predictions/{pred_id}/'
         resp = requests.get(url, headers=headers)
         return resp.json()
-    except Exception:  # temp debug
+    except Exception:  # noqa # temp debug
         print('>>>>>>>>>>>>>>>>>>>> Unexpected exception')  # temp debug
         print(traceback.format_exc())  # temp debug
         print('<<<<<<<<<<<<<<<<<<<<')  # temp debug
 
 
 def get_project_pred_ids(db, project_id):
-
-    all_tasks = {}
     tasks = get_tasks_from_mongodb(db, project_id, json_min=False, dump=False)
     existing_ids = db[f'project_{project_id}_preds'].find().distinct('_id')
 
@@ -52,8 +50,7 @@ def get_project_pred_ids(db, project_id):
 def process_preds(db, project_id):
     prediction_ids = get_project_pred_ids(db, project_id)
     if not prediction_ids:
-        logger.debug(
-            f'All predictions in project {project_id} are up-to-date')
+        logger.debug(f'All predictions in project {project_id} are up-to-date')
         return
 
     futures = []
@@ -63,7 +60,7 @@ def process_preds(db, project_id):
     for future in tqdm(futures, desc='Futures'):
         try:
             result = ray.get(future)
-        except Exception as e:  # temp debug
+        except Exception:  # noqa
             ray.cancel(future)
             logger.error(
                 '>>>>>>>>>>>>>>>>>>>> Unexpected exception')  # temp debug

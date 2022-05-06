@@ -9,7 +9,9 @@ from pathlib import Path
 
 import minio
 import ray
+import requests
 from loguru import logger
+from requests.structures import CaseInsensitiveDict
 
 
 def add_logger(current_file):
@@ -45,3 +47,17 @@ def keyboard_interrupt_handler(sig, _):
 
 def catch_keyboard_interrupt():
     return signal.signal(signal.SIGINT, keyboard_interrupt_handler)
+
+
+def get_project_ids(exclude_ids: str = None) -> str:
+    headers = CaseInsensitiveDict()
+    headers['Content-type'] = 'application/json'
+    headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
+    url = f'{os.environ["LS_HOST"]}/api/projects?page_size=10000'
+    projects = requests.get(url, headers=headers).json()
+    project_ids = sorted([project['id'] for project in projects['results']])
+    project_ids = [str(p) for p in project_ids]
+    if exclude_ids:
+        exclude_ids = [p for p in exclude_ids.split(',')]
+        project_ids = [p for p in project_ids if p not in exclude_ids]
+    return ','.join(project_ids)

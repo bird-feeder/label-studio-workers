@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from mongodb_helper import mongodb_db
-from utils import add_logger, catch_keyboard_interrupt, upload_logs
+from utils import (add_logger, catch_keyboard_interrupt, upload_logs,
+                   get_project_ids)
 
 
 class CreateRareClassesView:
@@ -46,6 +47,8 @@ class CreateRareClassesView:
             count_m = np.mean(labels_vals)
         elif self.method == 'median':
             count_m = np.median(labels_vals)
+        else:
+            count_m = 10
 
         excluded_labels = os.getenv('EXCLUDE_LABELS')
         if excluded_labels:
@@ -106,17 +109,17 @@ class CreateRareClassesView:
 
         default_view = copy.deepcopy(view_template)
 
-        filterd_labels = []
+        filtered_labels = []
         for label in labels_with_few_annos:
-            filterd_labels.append({
+            filtered_labels.append({
                 'filter': 'filter:tasks:predictions_results',
                 'operator': 'contains',
                 'type': 'String',
                 'value': label
             })
 
-        view_template['data']['filters']['conjunction'] = 'or'
-        view_template['data']['filters']['items'] = filterd_labels
+        view_template['data']['filters']['conjunction'] = 'or'  # noqa
+        view_template['data']['filters']['items'] = filtered_labels
         view_template['data']['title'] = 'rare_classes'
 
         view_template.update({'project': self.project_id})
@@ -151,7 +154,8 @@ class CreateRareClassesView:
 
         if existing_rare_classes_tab:
             if existing_rare_classes_tab[0]['data']['filters'][
-                    'items'] == filterd_labels and version_col in explore_dict:
+                    'items'] == filtered_labels and (version_col in
+                                                     explore_dict):
                 logger.debug(
                     'An identical `rare_classes` view already exists for '
                     f'project {self.project_id}. Skipping...')
@@ -160,8 +164,9 @@ class CreateRareClassesView:
                 logger.debug(
                     'The list of rare classes has changed! Replacing...')
                 existing_view_id = existing_rare_classes_tab[0]['id']
-                url = f'{os.environ["LS_HOST"]}/api/dm/views/{existing_view_id}'
-                resp = requests.delete(url, headers=headers)
+                url = f'{os.environ["LS_HOST"]}/api/dm/views/' \
+                      f'{existing_view_id}'
+                _ = requests.delete(url, headers=headers)
 
         url = f'{os.environ["LS_HOST"]}/api/dm/views/'
         logger.debug(f'Request: {url} -d {view_template}')
@@ -179,10 +184,7 @@ if __name__ == '__main__':
     load_dotenv()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--project-id', help='Project ID')
-    parser.add_argument('--all-projects',
-                        action='store_true',
-                        help='Run on all projects')
+    parser.add_argument('-p', '--project-ids', help='Project ids')
     parser.add_argument('-v',
                         '--model-version',
                         help='Model version',
@@ -197,17 +199,14 @@ if __name__ == '__main__':
         default='median')
     args = parser.parse_args()
 
-    if not args.all_projects and not args.project_id:
-        raise SystemExit('Must pick at least one project id!')
-
-    if args.all_projects:
-        projects = os.environ['PROJECTS_ID'].split(',')
+    if not args.project_ids:
+        project_ids = get_project_ids().split(',')
     else:
-        projects = [args.project_id]
+        project_ids = args.project_ids.split(',')
 
-    for project in projects:
+    for proj_id in project_ids:
         create_rare_classes_view = CreateRareClassesView(
-            project_id=project,
+            project_id=proj_id,
             model_version=args.model_version,
             method=args.method)
         _ = create_rare_classes_view.create_view()
