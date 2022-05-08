@@ -14,7 +14,7 @@ from create_rare_classes_view import CreateRareClassesView
 from sync_local_storage import sync_local_storage
 from sync_tasks import sync_tasks
 from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
-    get_project_ids
+    get_project_ids_str
 
 
 class MissingEnvironmentVariable(Exception):
@@ -38,7 +38,7 @@ def main():
     logger.info('Running `create_rare_classes_view`...')
 
     if not args.project_ids:
-        project_ids = get_project_ids().split(',')
+        project_ids = get_project_ids_str().split(',')
     else:
         project_ids = args.project_ids.split(',')
 

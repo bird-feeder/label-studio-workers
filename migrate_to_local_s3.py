@@ -10,13 +10,13 @@ import shutil
 from glob import glob
 from pathlib import Path
 
-import requests
 import seaborn as sns
 from dotenv import load_dotenv
 from loguru import logger
-from requests.structures import CaseInsensitiveDict
 from tqdm import tqdm
 from tqdm.contrib import tzip
+
+from utils import api_request
 
 
 class MigrateToS3:
@@ -31,33 +31,10 @@ class MigrateToS3:
         self.old_project_ids = old_project_ids
         self.images_per_folder = images_per_folder
 
-    @staticmethod
-    def make_headers() -> CaseInsensitiveDict:
-        headers = CaseInsensitiveDict()
-        headers['Content-type'] = 'application/json'
-        headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
-        return headers
-
-    def api_request(self, url, method='get', data=None) -> dict:
-        headers = self.make_headers()
-        request = {'url': url, 'method': method, 'data': data}
-        logger.debug(f'Request: {request}')
-        if method == 'get':
-            resp = requests.get(url, headers=headers)
-        elif method == 'post':
-            resp = requests.post(url, headers=headers, data=data)
-        elif method == 'patch':
-            resp = requests.patch(url, headers=headers, data=data)
-        else:
-            resp = requests.get(url, headers=headers)
-        response = resp.json()
-        logger.debug(f'Response: {response}')
-        return response
-
     def download_existing_project_tasks(self) -> list:
         all_existing_tasks_data = []
         for project_id in tqdm(self.old_project_ids):
-            data = self.api_request(
+            data = api_request(
                 f'{os.environ["LS_HOST"]}/api/projects/{project_id}/export'
                 '?exportType=JSON&download_all_tasks=true')
             all_existing_tasks_data.append(data)
@@ -83,8 +60,8 @@ class MigrateToS3:
         return list(range(1, len(chunks)))
 
     def create_new_projects(self, list_of_projects_to_create: list) -> list:
-        template = self.api_request(f'{os.environ["LS_HOST"]}/api/projects/'
-                                    f'{self.template_project_id}/')
+        template = api_request(f'{os.environ["LS_HOST"]}/api/projects/'
+                               f'{self.template_project_id}/')
         project_ids = []
 
         for n in list_of_projects_to_create:
@@ -102,11 +79,12 @@ class MigrateToS3:
                 'method': 'post',
                 'data': json.dumps(data)
             }
-            response = self.api_request(**request)
+            response = api_request(**request)
             project_ids.append(response['id'])
         return project_ids
 
-    def add_and_sync_data_storage(self, list_of_projects_to_create,
+    @staticmethod
+    def add_and_sync_data_storage(list_of_projects_to_create,
                                   project_ids) -> None:
         for project_name_num, project_id in tzip(list_of_projects_to_create,
                                                  project_ids):
@@ -130,7 +108,7 @@ class MigrateToS3:
                 'method': 'post',
                 'data': json.dumps(storage_dict)
             }
-            response = self.api_request(**request)
+            response = api_request(**request)
 
             storage_id = response['id']
             request = {
@@ -139,10 +117,11 @@ class MigrateToS3:
                 'method': 'post',
                 'data': json.dumps({'project': project_id})
             }
-            _ = self.api_request(**request)
+            _ = api_request(**request)
         return
 
-    def post_existing_annotations_to_new_projects(self, project_ids,
+    @staticmethod
+    def post_existing_annotations_to_new_projects(project_ids,
                                                   base_data) -> None:
         base_data_dicts = {}
         for x in base_data:
@@ -156,7 +135,7 @@ class MigrateToS3:
                 'method':
                 'get'
             }
-            cur_project_tasks = self.api_request(**request)
+            cur_project_tasks = api_request(**request)
 
             for item in tqdm(cur_project_tasks):
                 base_data_dict = base_data_dicts.get(
@@ -173,7 +152,7 @@ class MigrateToS3:
                                 'method': 'post',
                                 'data': json.dumps(anno)
                             }
-                            _ = self.api_request(**request)
+                            _ = api_request(**request)
         return
 
     def run(self):

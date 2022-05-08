@@ -7,13 +7,13 @@ import traceback
 
 import ray
 import requests
-from pymongo.errors import DuplicateKeyError
 from dotenv import load_dotenv
 from loguru import logger
+from pymongo.errors import DuplicateKeyError
 from tqdm import tqdm
 
 from mongodb_helper import mongodb_db, get_tasks_from_mongodb
-from utils import catch_keyboard_interrupt, get_project_ids
+from utils import catch_keyboard_interrupt, get_project_ids_str
 
 
 def make_headers():
@@ -88,7 +88,7 @@ def sync_preds():
     db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
 
     if not args.project_ids:
-        project_ids = get_project_ids().split(',')
+        project_ids = get_project_ids_str().split(',')
     else:
         project_ids = args.project_ids.split(',')
 

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from mongodb_helper import mongodb_db
-from utils import add_logger, catch_keyboard_interrupt, upload_logs, get_project_ids
+from utils import add_logger, catch_keyboard_interrupt, upload_logs, get_project_ids_str
 
 
 class CreateRareClassesView:
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if not args.project_ids:
-        project_ids = get_project_ids().split(',')
+        project_ids = get_project_ids_str().split(',')
     else:
         project_ids = args.project_ids.split(',')
 

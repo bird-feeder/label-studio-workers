@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import json
 import os
 import signal
 import sys
@@ -12,6 +13,7 @@ import ray
 import requests
 from loguru import logger
 from requests.structures import CaseInsensitiveDict
+from tqdm import tqdm
 
 
 def add_logger(current_file):
@@ -49,7 +51,7 @@ def catch_keyboard_interrupt():
     return signal.signal(signal.SIGINT, keyboard_interrupt_handler)
 
 
-def get_project_ids(exclude_ids: str = None) -> str:
+def get_project_ids_str(exclude_ids: str = None) -> str:
     headers = CaseInsensitiveDict()
     headers['Content-type'] = 'application/json'
     headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
@@ -61,3 +63,40 @@ def get_project_ids(exclude_ids: str = None) -> str:
         exclude_ids = [p for p in exclude_ids.split(',')]
         project_ids = [p for p in project_ids if p not in exclude_ids]
     return ','.join(project_ids)
+
+
+def api_request(url, method='get', data=None, verbose=False) -> dict:
+    headers = CaseInsensitiveDict()
+    headers['Content-type'] = 'application/json'
+    headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
+    if verbose:
+        request = {'url': url, 'method': method, 'data': data}
+        logger.debug(f'Request: {request}')
+    if method == 'get':
+        resp = requests.get(url, headers=headers)
+    elif method == 'post':
+        resp = requests.post(url, headers=headers, data=json.dumps(data))
+    elif method == 'patch':
+        resp = requests.patch(url, headers=headers, data=json.dumps(data))
+    response = resp.json()  # noqa
+    if verbose:
+        logger.debug(f'Response: {response}')
+    return response
+
+
+def update_model_version_in_all_projects(new_model_version):
+    project_ids = get_project_ids_str().split(',')
+
+    for project_id in tqdm(project_ids):
+        project = api_request(
+            f'{os.environ["LS_HOST"]}/api/projects/{project_id}')
+        project.update({'model_version': new_model_version})
+        project.pop('created_by')
+
+        patched_project = api_request(
+            f'{os.environ["LS_HOST"]}/api/projects/{project_id}',
+            method='patch',
+            data=project)
+        if patched_project.get('status_code'):
+            logger.error(patched_project)
+    return

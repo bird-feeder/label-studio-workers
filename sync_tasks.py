@@ -5,22 +5,13 @@ import argparse
 import os
 
 import ray
-import requests
 from dotenv import load_dotenv
 from loguru import logger
-from requests.structures import CaseInsensitiveDict
 from tqdm import tqdm
 
 from mongodb_helper import mongodb_db
 from sync_preds import process_preds
-from utils import catch_keyboard_interrupt, get_project_ids
-
-
-def api_request(url):
-    headers = CaseInsensitiveDict()
-    headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
-    resp = requests.get(url, headers=headers)
-    return resp.json()
+from utils import api_request, catch_keyboard_interrupt, get_project_ids_str
 
 
 @ray.remote
@@ -109,7 +100,7 @@ def sync_tasks():
     catch_keyboard_interrupt()
 
     if not args.project_ids:
-        project_ids = get_project_ids().split(',')
+        project_ids = get_project_ids_str().split(',')
     else:
         project_ids = args.project_ids.split(',')
 

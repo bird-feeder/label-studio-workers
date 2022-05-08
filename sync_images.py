@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from mongodb_helper import get_tasks_from_mongodb, mongodb_db
 from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
-    get_project_ids
+    get_project_ids_str
 
 
 @ray.remote
@@ -47,7 +47,7 @@ def sync_images():
     existing_ids = db.images.find().distinct('_id')
 
     if not args.project_ids:
-        project_ids = get_project_ids().split(',')
+        project_ids = get_project_ids_str().split(',')
     else:
         project_ids = args.project_ids.split(',')
 
