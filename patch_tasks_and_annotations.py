@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from utils import api_request, catch_keyboard_interrupt, get_project_ids_str
 
+ray.init()
 
 @ray.remote
 def patch_task_annotations_predictions(task):
@@ -66,3 +67,4 @@ if __name__ == '__main__':
     with open(sys.argv[1]) as j:
         data = json.load(j)
     main()
+    ray.shutdown()
