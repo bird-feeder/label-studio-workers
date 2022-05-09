@@ -8,13 +8,13 @@ import sys
 import ray
 from dotenv import load_dotenv
 from tqdm import tqdm
-
 from utils import api_request, catch_keyboard_interrupt, get_project_ids_str
 
 ray.init()
 
+
 @ray.remote
-def patch_task_annotations_predictions(task):
+def patch_task_annotations_and_predictions(task):
     for _anno in task['annotations']:
         anno_id = _anno['id']
         for anno in _anno['result']:
@@ -53,7 +53,7 @@ def main():
 
         futures = []
         for task in tasks:
-            futures.append(patch_task_annotations_predictions.remote(task))
+            futures.append(patch_task_annotations_and_predictions.remote(task))
 
         for future in tqdm(futures, desc='Futures'):
             ray.get(future)
