@@ -65,9 +65,14 @@ def get_project_ids_str(exclude_ids: str = None) -> str:
     return ','.join(project_ids)
 
 
-def api_request(url, method='get', data=None, verbose=False) -> dict:
+def api_request(url,
+                method='get',
+                data=None,
+                verbose=False,
+                return_text=False) -> dict:
     headers = CaseInsensitiveDict()
-    headers['Content-type'] = 'application/json'
+    if not method == 'get':
+        headers['Content-type'] = 'application/json'
     headers['Authorization'] = f'Token {os.environ["TOKEN"]}'
     if verbose:
         request = {'url': url, 'method': method, 'data': data}
@@ -78,7 +83,10 @@ def api_request(url, method='get', data=None, verbose=False) -> dict:
         resp = requests.post(url, headers=headers, data=json.dumps(data))
     elif method == 'patch':
         resp = requests.patch(url, headers=headers, data=json.dumps(data))
-    response = resp.json()  # noqa
+    if return_text:
+        response = resp.text  # noqa
+    else:
+        response = resp.json()  # noqa
     if verbose:
         logger.debug(f'Response: {response}')
     return response
