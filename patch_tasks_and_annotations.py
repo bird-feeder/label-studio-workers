@@ -7,14 +7,13 @@ import sys
 
 import ray
 from dotenv import load_dotenv
-from loguru import logger
 from tqdm import tqdm
 
 from utils import api_request, catch_keyboard_interrupt, get_project_ids_str
 
 
-@ray.remote(num_cpus=15)  # noqa
-def patch_task_annotations(task):
+@ray.remote(num_cpus=30)  # noqa
+def patch_task_annotations_predictions(task):
     for _anno in task['annotations']:
         anno_id = _anno['id']
         for anno in _anno['result']:
@@ -24,15 +23,10 @@ def patch_task_annotations(task):
             if data.get(label):
                 new_label = f'{label} ({data[label]})'
                 anno['value']['rectanglelabels'] = [new_label]
-                print(anno_id)
                 url = f'{os.environ["LS_HOST"]}/api/annotations/{anno_id}/'
                 api_request(url, method='patch', data=_anno)
-    return
 
-
-@ray.remote(num_cpus=15)  # noqa
-def patch_task_predictions(task_id):
-    url = f'{os.environ["LS_HOST"]}/api/predictions?task={task_id}'
+    url = f'{os.environ["LS_HOST"]}/api/predictions?task={task["id"]}'
     preds = api_request(url, method='get')
     for _pred in preds:
         pred_id = _pred['id']
@@ -44,7 +38,6 @@ def patch_task_predictions(task_id):
                 pred['value']['rectanglelabels'] = [new_label]
                 url = f'{os.environ["LS_HOST"]}/api/predictions/{pred_id}'
                 resp = api_request(url, method='patch', data=_pred)
-                logger.debug(f'[ PREDICTION ] {resp}')
     return
 
 
@@ -59,8 +52,7 @@ def main():
 
         futures = []
         for task in tasks:
-            futures.append(patch_task_annotations.remote(task))
-            futures.append(patch_task_predictions.remote(task['id']))
+            futures.append(patch_task_annotations_predictions.remote(task))
 
         for future in tqdm(futures, desc='Futures'):
             ray.get(future)
