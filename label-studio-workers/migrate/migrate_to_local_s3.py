@@ -16,7 +16,7 @@ from loguru import logger
 from tqdm import tqdm
 from tqdm.contrib import tzip
 
-from utils import api_request
+from ..utils import api_request
 
 
 class MigrateToS3:

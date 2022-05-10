@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 import minio
+import pymongo
 import ray
 import requests
 from loguru import logger
@@ -108,3 +109,61 @@ def update_model_version_in_all_projects(new_model_version):
         if patched_project.get('status_code'):
             logger.error(patched_project)
     return
+
+
+def mongodb_db(connection_string):
+    client = pymongo.MongoClient(connection_string)
+    return client[os.environ['DB_NAME']]
+
+
+def get_tasks_from_mongodb(project_id: str,
+                           db=None,
+                           dump=False,
+                           json_min=False,
+                           get_predictions=False):
+    if not db:
+        db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
+
+    if json_min:
+        col = db[f'project_{project_id}_min']
+    elif get_predictions:
+        col = db[f'project_{project_id}_preds']
+    else:
+        col = db[f'project_{project_id}']
+    tasks = list(col.find({}))
+
+    if dump:
+        with open('tasks.json', 'w') as j:
+            json.dump(tasks, j, indent=4)
+    return tasks
+
+
+def get_all_projects_tasks(dump=None, get_predictions_instead=False):
+
+    @ray.remote
+    def iter_projects(proj_id, get_preds_instead=get_predictions_instead):
+        if get_preds_instead:
+            _tasks = get_tasks_from_mongodb(proj_id,
+                                            dump=dump,
+                                            get_predictions=True)
+        else:
+            _tasks = get_tasks_from_mongodb(proj_id)
+        for task in _tasks:
+            task.pop('_id')
+        return _tasks
+
+    project_ids = get_project_ids_str().split(',')
+
+    futures = []
+    for project_id in project_ids:
+        futures.append(iter_projects.remote(project_id))
+
+    tasks = []
+    for future in tqdm(futures):
+        tasks.append(ray.get(future))
+
+    if dump:
+        with open(dump, 'w') as j:
+            json.dump(sum(tasks, []), j)
+
+    return sum(tasks, [])

@@ -24,8 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Run sync_tasks.py
-      env: 
-        PROJECTS_ID: ${{ secrets.PROJECTS_ID }}
+      env:
         TOKEN: ${{ secrets.TOKEN }}
         LS_HOST: ${{ secrets.LS_HOST }}
         DB_NAME: ${{ secrets.DB_NAME }}
@@ -36,4 +35,4 @@ jobs:
         S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
         S3_REGION: ${{ secrets.S3_REGION }}
       run: |
-        python sync_tasks.py
+        python label-studio-workers/sync_tasks.py

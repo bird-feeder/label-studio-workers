@@ -15,9 +15,8 @@ from dotenv import load_dotenv
 from pymongo.errors import DuplicateKeyError
 from tqdm import tqdm
 
-from mongodb_helper import get_tasks_from_mongodb, mongodb_db
-from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
-    get_project_ids_str
+from ..utils import add_logger, catch_keyboard_interrupt, upload_logs, \
+    get_project_ids_str, get_tasks_from_mongodb, mongodb_db
 
 
 @ray.remote
@@ -52,7 +51,8 @@ def sync_images():
         project_ids = args.project_ids.split(',')
 
     data = sum([
-        get_tasks_from_mongodb(main_db, project_id, dump=False, json_min=False)
+        get_tasks_from_mongodb(
+            db=main_db, project_id=project_id, dump=False, json_min=False)
         for project_id in project_ids
     ], [])
 

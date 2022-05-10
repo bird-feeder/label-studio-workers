@@ -9,7 +9,7 @@ from typing import Optional, Union
 from loguru import logger
 from tqdm import tqdm
 
-from utils import api_request, get_project_ids_str
+from ..utils import api_request, get_project_ids_str
 
 
 class LabelDoesNotExist(Exception):

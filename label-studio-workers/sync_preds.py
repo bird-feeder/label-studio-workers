@@ -12,8 +12,8 @@ from loguru import logger
 from pymongo.errors import DuplicateKeyError
 from tqdm import tqdm
 
-from mongodb_helper import mongodb_db, get_tasks_from_mongodb
-from utils import catch_keyboard_interrupt, get_project_ids_str
+from utils import catch_keyboard_interrupt, get_project_ids_str, mongodb_db, \
+    get_tasks_from_mongodb
 
 
 def make_headers():
@@ -37,7 +37,10 @@ def get_pred_details(pred_id):
 
 
 def get_project_pred_ids(db, project_id):
-    tasks = get_tasks_from_mongodb(db, project_id, json_min=False, dump=False)
+    tasks = get_tasks_from_mongodb(db=db,
+                                   project_id=project_id,
+                                   json_min=False,
+                                   dump=False)
     existing_ids = db[f'project_{project_id}_preds'].find().distinct('_id')
 
     all_pred_ids = []

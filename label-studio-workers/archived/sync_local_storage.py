@@ -20,7 +20,7 @@ import schedule
 from dotenv import load_dotenv
 from loguru import logger
 
-from utils import add_logger, catch_keyboard_interrupt, upload_logs
+from ..utils import add_logger, catch_keyboard_interrupt, upload_logs
 
 
 def _run(cmd):

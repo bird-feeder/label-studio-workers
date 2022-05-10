@@ -24,8 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Run create_rare_classes_view.py
-      env: 
-        PROJECTS_ID: ${{ secrets.PROJECTS_ID }}
+      env:
         TOKEN: ${{ secrets.TOKEN }}
         LS_HOST: ${{ secrets.LS_HOST }}
         DB_NAME: ${{ secrets.DB_NAME }}
@@ -36,4 +35,4 @@ jobs:
         S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
         S3_REGION: ${{ secrets.S3_REGION }}
       run: |
-        python create_rare_classes_view.py --model-version latest
+        python label-studio-workers/create_rare_classes_view.py --model-version latest

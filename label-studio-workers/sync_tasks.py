@@ -9,9 +9,9 @@ from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
-from mongodb_helper import mongodb_db
 from sync_preds import process_preds
-from utils import api_request, catch_keyboard_interrupt, get_project_ids_str
+from utils import api_request, catch_keyboard_interrupt, get_project_ids_str, \
+    mongodb_db
 
 
 @ray.remote

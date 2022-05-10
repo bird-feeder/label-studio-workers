@@ -166,3 +166,5 @@ Dockerfile
 loki-config.yaml
 promtail-config.yaml
 api_debugging.py
+notes.md
+backup_mongodb.sh

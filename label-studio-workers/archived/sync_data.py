@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import argparse
+import os
 import sys
 import time
 
@@ -9,11 +10,11 @@ import schedule
 from dotenv import load_dotenv
 from loguru import logger
 
-from create_rare_classes_view import CreateRareClassesView
-# from sync_images import sync_images
+from ..create_rare_classes_view import CreateRareClassesView
+from sync_images import sync_images
 from sync_local_storage import sync_local_storage
-from sync_tasks import sync_tasks
-from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
+from ..sync_tasks import sync_tasks
+from ..utils import add_logger, catch_keyboard_interrupt, upload_logs, \
     get_project_ids_str
 
 
@@ -54,9 +55,9 @@ def main():
     logger.info('Running `sync_tasks`...')
     sync_tasks()
 
-    # if os.getenv('LOCAL_DB_CONNECTION_STRING'):
-    #     logger.info('Running `sync_images`...')
-    #     sync_images()
+    if os.getenv('LOCAL_DB_CONNECTION_STRING'):
+        logger.info('Running `sync_images`...')
+        sync_images()
 
     logger.info(f'End. Took {round(time.time() - start, 2)}s')
 
