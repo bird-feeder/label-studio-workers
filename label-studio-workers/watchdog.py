@@ -4,31 +4,57 @@
 import argparse
 import copy
 import imghdr
-import os
 import shutil
-import signal
-import sys
 import time
+import uuid
 from glob import glob
 from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
+from dotenv import load_dotenv
 from loguru import logger
+
+from add_and_sync_new_project import add_new_project, add_and_sync_data_storage
+from utils import catch_keyboard_interrupt
+
+
+class MissingArgument(Exception):
+    pass
 
 
 class WatchDog:
 
-    def __init__(self, root_data_folder, images_per_folder=1000):
+    def __init__(self, root_data_folder, images_per_folder=1000, debug=False):
         self.root_data_folder = root_data_folder
         self.images_per_folder = images_per_folder
+        self.debug = debug
 
     @staticmethod
-    def keyboard_interrupt_handler(sig: int, _) -> None:
-        logger.warning(f'KeyboardInterrupt (id: {sig}) has been caught...')
-        logger.info('Terminating the session gracefully...')
-        sys.exit(1)
+    def create_dummy_data():
+        dummy_projects = ['project-1000', 'project-1001', 'MOVE_ME']
+
+        for project in dummy_projects:
+            num_dummies = 1000
+            proj_folder = Path(f'dummy/{project}')
+            if project == dummy_projects[-2]:
+                num_dummies = 200
+            elif project == 'MOVE_ME':
+                num_dummies = 3600
+                proj_folder = Path(project)
+
+            proj_folder.mkdir(exist_ok=True, parents=True)
+
+            for _ in range(num_dummies):
+                fname = str(uuid.uuid4())
+                Path(proj_folder /
+                     Path(f'fake_{str(fname).zfill(4)}.jpg')).touch()
+
+        logger.debug('Created dummy data')
+        return
 
     def validate_image_file(self, file: str) -> str:
+        if self.debug:
+            return file
         try:
             if imghdr.what(file) and Image.open(file):
                 return file
@@ -99,9 +125,14 @@ class WatchDog:
 
         for chunk in chunks:
             dst = self.generate_next_folder_name()
+            folder_name = Path(dst).name
             for file in chunk:
                 if self.validate_image_file(file):
                     shutil.move(file, dst)
+            if not self.debug:
+                new_project = add_new_project(folder_name)
+                _ = add_and_sync_data_storage(new_project['id'],
+                                              new_project['title'])
 
         for empty_folder in new_folders:
             contains_any_file = [
@@ -112,15 +143,13 @@ class WatchDog:
                 shutil.rmtree(empty_folder)
 
     def watch(self):
-        signal.signal(signal.SIGINT, self.keyboard_interrupt_handler)
-
-        if os.geteuid() != 0 and not args.no_root:
-            raise PermissionError(
-                'You need root access to run this module. If the buckets '
-                'don\'t require root access for write operations, rerun with '
-                'the flag `--no-root`')
-
-        Path(f'{self.root_data_folder}/project-0001').mkdir(exist_ok=True)
+        catch_keyboard_interrupt()
+        root_data_folder = self.root_data_folder
+        if self.debug:
+            self.root_data_folder = 'dummy'
+            self.create_dummy_data()
+        else:
+            Path(f'{self.root_data_folder}/project-0001').mkdir(exist_ok=True)
 
         logger.debug('Started watchdog...')
 
@@ -135,21 +164,24 @@ class WatchDog:
 
 
 if __name__ == '__main__':
+    load_dotenv()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--root-data-folder',
                         help='Path to the folder where all the data is kept',
-                        type=str,
-                        required=True)
+                        type=str)
+    parser.add_argument('--debug', help='Debug mode', action='store_true')
     parser.add_argument('--images-per-folder',
                         help='Number of images per folder',
                         type=int,
                         default=1000)
-    parser.add_argument('--no-root',
-                        action='store_true',
-                        help='Use if the buckets don\'t require root '
-                        'access for write operations')
     args = parser.parse_args()
 
+    if not args.root_data_folder and not args.debug:
+        raise MissingArgument(
+            '`--root_data_folder` is required when not in debug mode!')
+
     watch_dog = WatchDog(root_data_folder=args.root_data_folder,
-                         images_per_folder=args.images_per_folder)
+                         images_per_folder=args.images_per_folder,
+                         debug=args.debug)
     watch_dog.watch()
