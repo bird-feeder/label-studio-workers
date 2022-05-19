@@ -121,7 +121,7 @@ def get_tasks_from_mongodb(project_id: str,
                            dump=False,
                            json_min=False,
                            get_predictions=False):
-    if not db:
+    if db is None:
         db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
 
     if json_min:
