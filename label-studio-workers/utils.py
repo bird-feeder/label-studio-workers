@@ -167,3 +167,26 @@ def get_all_projects_tasks(dump=None, get_predictions_instead=False):
             json.dump(sum(tasks, []), j)
 
     return sum(tasks, [])
+
+
+def drop_all_projects_from_mongodb():
+    CONFIRMED = False
+    q = input('Are you sure (y/N)? ')
+    if q.lower() in ['y', 'yes']:
+        confirm = input('Confirm by typing: "I confirm": ')
+        if confirm == 'I confirm':
+            CONFIRMED = True
+    if not CONFIRMED:
+        logger.warning('Cancelled...')
+        return
+
+    catch_keyboard_interrupt()
+
+    project_ids = get_project_ids_str().split(',')
+
+    for project_id in tqdm(project_ids):
+        db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
+        for name in ['', '_min', '_preds']:
+            col = db[f'project_{project_id}{name}']
+            col.drop()
+    logger.info('Dropped all projects from MongoDB.')

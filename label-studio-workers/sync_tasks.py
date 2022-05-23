@@ -2,20 +2,58 @@
 # coding: utf-8
 
 import argparse
+import copy
 import os
+from typing import Union
 
+import numpy as np
 import ray
 from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
 from sync_preds import process_preds
-from utils import api_request, catch_keyboard_interrupt, get_project_ids_str, \
-    mongodb_db
+from utils import (api_request, catch_keyboard_interrupt,
+                   get_all_projects_tasks, get_project_ids_str, mongodb_db)
 
 
 @ray.remote
-def run(project_id, json_min=False):
+def insert_many_chunks(chunk: list, col_name: str) -> None:
+    db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
+    col = db[col_name]
+    col.insert_many(chunk.tolist())
+
+
+def sync_all() -> None:
+    logger.debug('Running `sync_all()`...')
+
+    tasks = get_all_projects_tasks()
+    preds = get_all_projects_tasks(get_predictions_instead=True)
+
+    for res, res_name in zip([tasks, preds], ['tasks', 'preds']):
+        logger.debug(f'Syncing all {res_name} to one collection...')
+        db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
+        col_name = f'all_projects_{res_name}'
+        col = db[col_name]
+        col.drop()
+        chunks = np.array_split(res, 10)
+        desc = f'{res_name.capitalize()} chunks'
+
+        futures = [
+            insert_many_chunks.remote(chunk, col_name) for chunk in chunks
+        ]
+        _ = [ray.get(future) for future in tqdm(futures, desc=desc)]
+
+        logger.debug(f'Finished syncing all {res_name} to one collection...')
+
+    logger.debug('Finished running `sync_all()`...')
+    return
+
+
+@ray.remote
+def run(project_id: Union[int, str],
+        json_min: bool = False,
+        force_update: bool = False):
     """This function is used to update the database with the latest data from
     the server.
     It takes the project id as an argument and then makes an API request to
@@ -54,9 +92,8 @@ def run(project_id, json_min=False):
 
     mdb_lens = (tasks_len_mdb, anno_len_mdb, pred_len_mdb)
 
-    if (not json_min
-            and ls_lens != mdb_lens) or (json_min
-                                         and anno_len_ls != anno_len_mdb):
+    if force_update or ((not json_min and ls_lens != mdb_lens) or
+                        (json_min and anno_len_ls != anno_len_mdb)):
         _msg = lambda x: f'Difference in {x} number'  # noqa
         logger.debug(
             f'(project: {project_id}) Project has changed. Updating...')
@@ -75,6 +112,7 @@ def run(project_id, json_min=False):
             data = api_request(
                 f'{os.environ["LS_HOST"]}/api/projects/{project_id}/export'
                 '?exportType=JSON&download_all_tasks=true')
+            tasks = copy.deepcopy(data)
 
         for task in data:
             if json_min:
@@ -89,14 +127,27 @@ def run(project_id, json_min=False):
     else:
         logger.debug(f'(project: {project_id}) No changes were detected...')
 
-    if pred_len_ls != pred_len_mdb:
+    if not json_min and (force_update or pred_len_ls != pred_len_mdb):
         logger.debug(f'(project: {project_id}) Syncing predictions...')
-        process_preds(db, project_id)
+        process_preds(db, project_id, tasks)
 
     logger.info(f'(project: {project_id}) Finished (json_min: {json_min}).')
 
 
-def sync_tasks():
+def opts() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p',
+                        '--project-ids',
+                        help='Comma-seperated project ids',
+                        type=str)
+    parser.add_argument('-f',
+                        '--force',
+                        help='Force update',
+                        action='store_true')
+    return parser.parse_args()
+
+
+def sync_tasks(force_update: bool = False):
     catch_keyboard_interrupt()
 
     if not args.project_ids:
@@ -104,22 +155,25 @@ def sync_tasks():
     else:
         project_ids = args.project_ids.split(',')
 
-    futures = []
-    for project_id in project_ids:
-        futures.append(run.remote(project_id, json_min=False))
-        futures.append(run.remote(project_id, json_min=True))
+    futures = [
+        run.remote(project_id, json_min=False, force_update=force_update)
+        for project_id in project_ids
+    ]
+    _ = [ray.get(future) for future in tqdm(futures, desc='Projects')]
 
-    for future in tqdm(futures, desc='Projects'):
-        ray.get(future)
+    futures_min = [
+        run.remote(project_id, json_min=True, force_update=force_update)
+        for project_id in project_ids
+    ]
+    _ = [ray.get(future) for future in tqdm(futures, desc='Projects min')]
+
     return
 
 
 if __name__ == '__main__':
     load_dotenv()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-p',
-                        '--project-ids',
-                        help='Comma-seperated project ids',
-                        type=str)
-    args = parser.parse_args()
-    sync_tasks()
+    args = opts()
+    if args.force:
+        logger.info('Invoked force update!')
+    sync_tasks(force_update=args.force)
+    sync_all()

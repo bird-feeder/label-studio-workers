@@ -168,3 +168,4 @@ promtail-config.yaml
 api_debugging.py
 notes.md
 backup_mongodb.sh
+label-studio-workers/debugging.py
