@@ -11,7 +11,7 @@ import requests
 from dotenv import load_dotenv
 from loguru import logger
 
-from .utils import add_logger, catch_keyboard_interrupt, upload_logs, \
+from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
     get_project_ids_str, mongodb_db
 
 
@@ -30,7 +30,6 @@ class CreateRareClassesView:
         return headers
 
     def create_view(self):
-        logs_file = add_logger(__file__)
         catch_keyboard_interrupt()
 
         db = mongodb_db(os.environ['DB_CONNECTION_STRING'])
@@ -173,14 +172,10 @@ class CreateRareClassesView:
                              data=json.dumps(view_template))
         new_view = resp.json()
         logger.debug(f'Response: {new_view}')
-
-        upload_logs(logs_file)
         return new_view
 
 
-if __name__ == '__main__':
-    load_dotenv()
-
+def opts():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--project-ids', help='Project ids')
     parser.add_argument('-v',
@@ -195,7 +190,14 @@ if __name__ == '__main__':
         help='The method used to calculate underrepresented classes',
         choices=['mean', 'median'],
         default='median')
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    load_dotenv()
+    logs_file = add_logger(__file__)
+
+    args = opts()
 
     if not args.project_ids:
         project_ids = get_project_ids_str().split(',')
@@ -208,3 +210,5 @@ if __name__ == '__main__':
             model_version=args.model_version,
             method=args.method)
         _ = create_rare_classes_view.create_view()
+
+    upload_logs(logs_file)

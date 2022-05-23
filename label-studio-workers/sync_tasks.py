@@ -12,9 +12,8 @@ from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
-from sync_preds import process_preds
 from utils import (api_request, catch_keyboard_interrupt,
-                    get_all_projects_tasks, get_project_ids_str, mongodb_db)
+                   get_all_projects_tasks, get_project_ids_str, mongodb_db)
 
 
 @ray.remote
@@ -65,8 +64,8 @@ def run(project_id: Union[int, str],
     API request to get the data of all the tasks in the project.
     It then updates the database with the latest data.
     """
-    project_data = api_request(
-        f'{os.environ["LS_HOST"]}/api/projects/{project_id}/')
+    ls_host = os.environ["LS_HOST"]
+    project_data = api_request(f'{ls_host}/api/projects/{project_id}/')
 
     tasks_len_ls = project_data['task_number']
     if tasks_len_ls == 0:
@@ -105,13 +104,15 @@ def run(project_id: Union[int, str],
                      f'{pred_len_ls - pred_len_mdb}')
 
         if json_min:
-            data = api_request(
-                f'{os.environ["LS_HOST"]}/api/projects/{project_id}/export'
-                '?exportType=JSON_MIN&download_all_tasks=true')
+            data = api_request(f'{ls_host}/api/projects/{project_id}/export'
+                               '?exportType=JSON_MIN&download_all_tasks=true')
+            if not data:
+                logger.debug(f'No tasks found in project {project_id} '
+                             f'(json_min: {json_min}). Skipping...')
+                return
         else:
-            data = api_request(
-                f'{os.environ["LS_HOST"]}/api/projects/{project_id}/export'
-                '?exportType=JSON&download_all_tasks=true')
+            data = api_request(f'{ls_host}/api/projects/{project_id}/export'
+                               '?exportType=JSON&download_all_tasks=true')
             tasks = copy.deepcopy(data)
 
         for task in data:
@@ -129,7 +130,17 @@ def run(project_id: Union[int, str],
 
     if not json_min and (force_update or pred_len_ls != pred_len_mdb):
         logger.debug(f'(project: {project_id}) Syncing predictions...')
-        process_preds(db, project_id, tasks)  # noqa
+        proj_preds = api_request(
+            f'{ls_host}/api/predictions?task__project={project_id}')
+        if proj_preds:
+            for pred in proj_preds:
+                pred.update({'_id': pred['id']})
+            col = db[f'project_{project_id}_preds']
+            col.drop()
+            col.insert_many(proj_preds)
+        else:
+            logger.debug(
+                f'No predictions found in project {project_id}. Skipping...')
 
     logger.info(f'(project: {project_id}) Finished (json_min: {json_min}).')
 
