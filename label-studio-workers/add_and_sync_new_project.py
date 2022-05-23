@@ -7,7 +7,7 @@ import random
 import matplotlib
 from loguru import logger
 
-from utils import api_request
+from .utils import api_request
 
 
 def add_new_project(new_project_folder_name):
@@ -45,7 +45,7 @@ def add_new_project(new_project_folder_name):
 
 def add_and_sync_data_storage(project_id,
                               project_name,
-                              s3_endpoint_scheme='https://') -> None:
+                              s3_endpoint_scheme='https://') -> dict:
     storage_dict = {
         "type": "s3",
         "presign": True,

@@ -14,8 +14,9 @@ from PIL import Image, UnidentifiedImageError
 from dotenv import load_dotenv
 from loguru import logger
 
-from add_and_sync_new_project import add_new_project, add_and_sync_data_storage
-from utils import catch_keyboard_interrupt
+from .add_and_sync_new_project import add_new_project, \
+    add_and_sync_data_storage
+from .utils import catch_keyboard_interrupt
 
 
 class MissingArgument(Exception):
@@ -144,7 +145,6 @@ class WatchDog:
 
     def watch(self):
         catch_keyboard_interrupt()
-        root_data_folder = self.root_data_folder
         if self.debug:
             self.root_data_folder = 'dummy'
             self.create_dummy_data()
