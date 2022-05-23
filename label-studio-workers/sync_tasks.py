@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
-from .sync_preds import process_preds
-from .utils import (api_request, catch_keyboard_interrupt,
+from sync_preds import process_preds
+from utils import (api_request, catch_keyboard_interrupt,
                     get_all_projects_tasks, get_project_ids_str, mongodb_db)
 
 

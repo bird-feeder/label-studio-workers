@@ -14,9 +14,9 @@ from PIL import Image, UnidentifiedImageError
 from dotenv import load_dotenv
 from loguru import logger
 
-from .add_and_sync_new_project import add_new_project, \
+from add_and_sync_new_project import add_new_project, \
     add_and_sync_data_storage
-from .utils import catch_keyboard_interrupt
+from utils import catch_keyboard_interrupt
 
 
 class MissingArgument(Exception):

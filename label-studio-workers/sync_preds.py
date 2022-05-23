@@ -7,7 +7,7 @@ import ray
 from loguru import logger
 from tqdm import tqdm
 
-from .utils import api_request
+from utils import api_request
 
 
 @ray.remote

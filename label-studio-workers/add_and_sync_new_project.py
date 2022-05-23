@@ -7,7 +7,7 @@ import random
 import matplotlib
 from loguru import logger
 
-from .utils import api_request
+from utils import api_request
 
 
 def add_new_project(new_project_folder_name):
