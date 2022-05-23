@@ -11,7 +11,7 @@ import requests
 from dotenv import load_dotenv
 from loguru import logger
 
-from utils import add_logger, catch_keyboard_interrupt, upload_logs, \
+from .utils import add_logger, catch_keyboard_interrupt, upload_logs, \
     get_project_ids_str, mongodb_db
 
 

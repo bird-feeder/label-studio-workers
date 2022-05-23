@@ -8,7 +8,8 @@ import ray
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from utils import api_request, catch_keyboard_interrupt, get_all_projects_tasks
+from ..utils import api_request, catch_keyboard_interrupt, \
+    get_all_projects_tasks
 
 
 @ray.remote
