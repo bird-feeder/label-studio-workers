@@ -1,5 +1,8 @@
 # label-studio-workers
 
+**MOVED TO: https://github.com/bird-feeder/BirdFSD-YOLOv5/tree/main/birdfsd_yolov5/label_studio_helpers**
+
+
 ## Requirements
 
 - [Python>=3.7](https://www.python.org/downloads/)
